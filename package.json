@@ -6,6 +6,8 @@
   "main": "./out/main/index.js",
   "private": true,
   "scripts": {
+    "postinstall": "install-electron",
+    "predev": "install-electron",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
@@ -15,11 +17,23 @@
   "build": {
     "appId": "xyz.lyricsvisualiser.app",
     "productName": "Lyrics Visualiser",
-    "files": ["out/**/*"],
+    "files": [
+      "out/**/*"
+    ],
     "mac": {
       "category": "public.app-category.music",
-      "target": [{ "target": "dmg", "arch": ["arm64", "x64"] }],
-      "extendInfo": { "LSUIElement": false }
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "extendInfo": {
+        "LSUIElement": false
+      }
     }
   },
   "devDependencies": {

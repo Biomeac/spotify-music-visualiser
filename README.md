@@ -11,7 +11,7 @@ A Mac app that shows beautiful, time-synced lyrics for whatever you're playing o
 - Click any line to jump there, and use the timing offset slider if lyrics run early or late.
 
 ## Setup
-1. Install Node 20+ and run `npm install`.
+1. Install Node 20+ and run `npm install`. This also downloads the Electron binary; if it was interrupted, `npm run dev` retries it.
 2. Create an app at https://developer.spotify.com/dashboard:
    - Redirect URI: `http://127.0.0.1:43821/callback`
    - APIs used: **Web API**
