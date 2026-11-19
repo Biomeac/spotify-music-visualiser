@@ -5,7 +5,8 @@ A Mac app that shows beautiful, time-synced lyrics for whatever you're playing o
 ## Features
 - **Search any song** (⌘K) and play it on your Spotify app, Mac or phone. Spotify Premium is needed for playback control.
 - **Follows whatever you play.** Changing a song in Spotify updates the lyrics.
-- **4 styles:** Glow, Sweep, Focus and Messages. The background and glow colour come from the album art.
+- **8 lyric styles:** Glow, Sweep, Focus, Messages (a realistic iMessage-style conversation with typing dots, reactions and read receipts), Kinetic, Neon, Typewriter and Bounce.
+- **Live backgrounds:** Aurora, Particles, Waves, Album art or Solid. Colours come from the album or your own picks and presets, with speed, brightness, blur, film grain, and an option to pulse with each lyric line.
 - **Floating overlay** that stays on top of full-screen apps and every Space. It can be locked so clicks pass through. The ♪ menu bar icon toggles it.
 - Click any line to jump there, and use the timing offset slider if lyrics run early or late.
 

@@ -1,7 +1,7 @@
 import { app, safeStorage } from 'electron'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import type { Settings } from '../shared'
+import { DEFAULT_BACKGROUND, type Settings } from '../shared'
 
 const defaults: Settings = {
   clientId: '',
@@ -9,7 +9,8 @@ const defaults: Settings = {
   offsetMs: 0,
   fontScale: 1,
   overlayVisible: false,
-  overlayLocked: false
+  overlayLocked: false,
+  background: DEFAULT_BACKGROUND
 }
 
 export interface Tokens {
@@ -27,7 +28,8 @@ let cache: Settings | null = null
 export function getSettings(): Settings {
   if (cache) return cache
   try {
-    cache = { ...defaults, ...JSON.parse(readFileSync(settingsPath(), 'utf8')) }
+    const saved = JSON.parse(readFileSync(settingsPath(), 'utf8'))
+    cache = { ...defaults, ...saved, background: { ...DEFAULT_BACKGROUND, ...saved.background } }
   } catch {
     cache = { ...defaults }
   }

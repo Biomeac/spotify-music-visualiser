@@ -1,5 +1,7 @@
 import { memo, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
-import type { LyricStyle } from '../../../shared'
+import type { LyricStyle, Track } from '../../../shared'
+import MessagesView from './MessagesView'
+import { BounceLyrics, KineticLyrics, NeonLyrics, TypewriterLyrics } from './AnimatedStyles'
 import { activeLineIndex, wordProgress, type Line } from '../lib/lrc'
 
 interface Props {
@@ -7,6 +9,7 @@ interface Props {
   t: number
   style: LyricStyle
   onSeek?: (sec: number) => void
+  track?: Track | null
 }
 
 export function LineWords({ line, t }: { line: Line; t: number }) {
@@ -104,34 +107,12 @@ function FocusLyrics({ lines, t }: Props) {
   )
 }
 
-function MessageLyrics({ lines, t }: Props) {
-  const active = activeLineIndex(lines, t)
-  const shown = lines.slice(0, active + 1).map((l, i) => ({ l, i })).filter(({ l }) => l.text).slice(-7)
-  const cur = lines[active]
-  const next = lines[active + 1]
-  const typing = cur && next && t > cur.singEnd + 0.4 && next.start - t > 0.2 && next.text
-  return (
-    <div className="lyrics style-messages">
-      <div className="thread">
-        {shown.map(({ l, i }) => (
-          <div key={i} className={`bubble ${i === active ? 'live' : ''}`}>
-            {i === active ? <LineWords line={l} t={t} /> : l.text}
-          </div>
-        ))}
-        {typing && (
-          <div className="bubble typing">
-            <i />
-            <i />
-            <i />
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 export default function LyricsView(props: Props) {
   if (props.style === 'focus') return <FocusLyrics {...props} />
-  if (props.style === 'messages') return <MessageLyrics {...props} />
+  if (props.style === 'messages') return <MessagesView lines={props.lines} t={props.t} track={props.track ?? null} />
+  if (props.style === 'kinetic') return <KineticLyrics {...props} />
+  if (props.style === 'neon') return <NeonLyrics {...props} />
+  if (props.style === 'typewriter') return <TypewriterLyrics {...props} />
+  if (props.style === 'bounce') return <BounceLyrics {...props} />
   return <ScrollingLyrics {...props} />
 }

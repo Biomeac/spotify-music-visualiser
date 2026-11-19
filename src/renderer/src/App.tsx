@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { useAppState, useSongTime } from './lib/useAppState'
-import { useArtColor } from './lib/useArtColor'
+import { useArtPalette } from './lib/useArtColor'
+import { activeLineIndex } from './lib/lrc'
+import Background from './components/Background'
 import { plainToLines } from './lib/lrc'
 import LyricsView from './components/LyricsView'
 import Setup from './components/Setup'
@@ -11,7 +13,8 @@ import SettingsPanel from './components/SettingsPanel'
 export default function App() {
   const { ready, settings, auth, playback, lyrics, lines, error: pollError } = useAppState()
   const t = useSongTime(playback, settings.offsetMs)
-  const accent = useArtColor(playback.track?.artUrl)
+  const palette = useArtPalette(playback.track?.artUrl)
+  const accent = palette.accent
   const [showSettings, setShowSettings] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const onError = useCallback((m: string) => setToast(m), [])
@@ -37,7 +40,7 @@ export default function App() {
         <p className="lede">Or press play in Spotify. Lyrics follow whatever you are listening to.</p>
       </div>
     )
-  else if (lines.length) body = <LyricsView lines={lines} t={t} style={settings.style} onSeek={(s) => window.api.control('seek', s * 1000)} />
+  else if (lines.length) body = <LyricsView lines={lines} t={t} track={track} style={settings.style} onSeek={(s) => window.api.control('seek', s * 1000)} />
   else if (lyrics?.status === 'plain-only' && lyrics.plain)
     body = (
       <div className="lyrics plain">
@@ -68,12 +71,13 @@ export default function App() {
 
   return (
     <div className="app" style={vars}>
-      {track?.artUrl && (
-        <div className="bg" key={track.id}>
-          <img src={track.artUrl} alt="" />
-        </div>
-      )}
-      <div className="vignette" />
+      <Background
+        bg={settings.background}
+        colors={palette.colors}
+        artUrl={track?.artUrl ?? null}
+        beat={lines.length ? activeLineIndex(lines, t) : 0}
+        playing={playback.isPlaying}
+      />
       <header className="topbar">
         {auth.loggedIn && <SearchBar onError={onError} />}
         {auth.loggedIn && (

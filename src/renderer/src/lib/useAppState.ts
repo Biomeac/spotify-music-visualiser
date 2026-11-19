@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { AuthStatus, LyricsResult, PlaybackState, Settings } from '../../../shared'
+import { DEFAULT_BACKGROUND, type AuthStatus, type LyricsResult, type PlaybackState, type Settings } from '../../../shared'
 import { parseLrc, type Line } from './lrc'
 
 export interface AppState {
@@ -48,7 +48,7 @@ export function useAppState(): AppState {
 
   return {
     ready: !!settings,
-    settings: settings ?? { clientId: '', style: 'glow', offsetMs: 0, fontScale: 1, overlayVisible: false, overlayLocked: false },
+    settings: settings ?? { clientId: '', style: 'glow', offsetMs: 0, fontScale: 1, overlayVisible: false, overlayLocked: false, background: DEFAULT_BACKGROUND },
     auth,
     playback,
     lyrics,
