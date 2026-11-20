@@ -107,7 +107,21 @@ async function accessToken(): Promise<string> {
   return tokens!.accessToken
 }
 
+// ---- Rate limiting ----
+// Spotify answers 429 with a Retry-After header when an app calls too often. While that window lasts we
+// send nothing at all (more calls only extend the block) and tell the user when we'll resume.
+let blockedUntil = 0
+
+export class RateLimitError extends Error {
+  constructor(public retryAt: number) {
+    super(`Spotify asked us to slow down. Resuming in ${Math.max(1, Math.ceil((retryAt - Date.now()) / 1000))}s.`)
+  }
+}
+
+export const rateLimitedUntil = () => blockedUntil
+
 async function api<T = unknown>(path: string, init: RequestInit = {}, retried = false): Promise<T | null> {
+  if (Date.now() < blockedUntil) throw new RateLimitError(blockedUntil)
   const res = await fetch(`https://api.spotify.com/v1${path}`, {
     ...init,
     headers: { Authorization: `Bearer ${await accessToken()}`, 'Content-Type': 'application/json', ...init.headers }
@@ -115,6 +129,11 @@ async function api<T = unknown>(path: string, init: RequestInit = {}, retried = 
   if (res.status === 401 && !retried && tokens) {
     tokens.expiresAt = 0
     return api(path, init, true)
+  }
+  if (res.status === 429) {
+    const retryAfter = Number(res.headers.get('Retry-After'))
+    blockedUntil = Date.now() + (Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 30_000) + 500
+    throw new RateLimitError(blockedUntil)
   }
   if (res.status === 204 || res.status === 202) return null
   if (!res.ok) {
@@ -159,13 +178,15 @@ export async function search(q: string): Promise<Track[]> {
 }
 
 export async function nowPlaying(): Promise<PlaybackState> {
+  const sentAt = Date.now()
   const r = await api<{
     is_playing: boolean
     progress_ms: number | null
     item: (SpotifyTrack & { type: string }) | null
     device?: { name: string }
   }>('/me/player?additional_types=track')
-  const sampledAt = Date.now()
+  // Spotify measures progress somewhere during the round trip; the midpoint is the best estimate.
+  const sampledAt = Math.round((sentAt + Date.now()) / 2)
   if (!r || !r.item || r.item.type !== 'track')
     return { track: null, isPlaying: false, progressMs: 0, sampledAt, device: r?.device?.name ?? null }
   return {
@@ -202,6 +223,12 @@ export async function play(uri: string): Promise<void> {
     if (!device) throw new Error('Open Spotify on this Mac (or any device) and try again.')
   }
   await api(`/me/player/play?device_id=${device.id}`, { method: 'PUT', body: JSON.stringify({ uris: [uri] }) })
+}
+
+/** Tracks queued after the current one, used to prefetch their lyrics. */
+export async function upNext(limit = 2): Promise<Track[]> {
+  const r = await api<{ queue: (SpotifyTrack & { type: string })[] }>('/me/player/queue')
+  return (r?.queue ?? []).filter((t) => t?.type === 'track').slice(0, limit).map(toTrack)
 }
 
 export async function control(action: 'play' | 'pause' | 'next' | 'previous' | 'seek', positionMs?: number) {

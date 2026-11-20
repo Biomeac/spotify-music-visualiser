@@ -8,7 +8,13 @@ A Mac app that shows beautiful, time-synced lyrics for whatever you're playing o
 - **8 lyric styles:** Glow, Sweep, Focus, Messages (a realistic iMessage-style conversation with typing dots, reactions and read receipts), Kinetic, Neon, Typewriter and Bounce.
 - **Live backgrounds:** Aurora, Particles, Waves, Album art or Solid. Colours come from the album or your own picks and presets, with speed, brightness, blur, film grain, and an option to pulse with each lyric line.
 - **Floating overlay** that stays on top of full-screen apps and every Space. It can be locked so clicks pass through. The ♪ menu bar icon toggles it.
-- Click any line to jump there, and use the timing offset slider if lyrics run early or late.
+- Click any line to jump there. Use `[` and `]` to nudge timing for the current song; it is remembered per song.
+- **Customise** fonts, weight, alignment, sung-word colour, glow, dimming, blur, animation speed, ALL CAPS, background, overlay size and backdrop, and auto-hiding controls.
+- Shortcuts: Space play/pause, ←/→ seek 5s, N/P next/previous, 1–8 styles, ⌘K search, O overlay, F full screen, S customise.
+
+## How it connects
+- **Spotify app on this Mac (automatic, no sign-in).** Like DJ apps, it reads the Spotify desktop app directly, so lyrics follow along with no setup, no rate limits and millisecond-accurate timing. macOS asks once for permission to control Spotify. Play, pause, skip, seek and playing a searched song all go through the app, and playing a specific song works without Premium.
+- **Spotify account (optional, one-time).** Needed for search, and to follow playback on your phone or speakers.
 
 ## Setup
 1. Install Node 20+ and run `npm install`. This also downloads the Electron binary; if it was interrupted, `npm run dev` retries it.

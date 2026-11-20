@@ -34,26 +34,38 @@ async function getJson<T>(url: string): Promise<T | null> {
   return (await res.json()) as T
 }
 
-export async function fetchLyrics(track: Track): Promise<LyricsResult> {
+const inflight = new Map<string, Promise<LyricsResult>>()
+
+/** Cached and de-duplicated, so a prefetch and a real load of the same song share one request. */
+export function fetchLyrics(track: Track): Promise<LyricsResult> {
   const hit = cache.get(track.id)
-  if (hit) return hit
+  if (hit) return Promise.resolve(hit)
+  let p = inflight.get(track.id)
+  if (!p) {
+    p = lookup(track).finally(() => inflight.delete(track.id))
+    inflight.set(track.id, p)
+  }
+  return p
+}
+
+async function lookup(track: Track): Promise<LyricsResult> {
   const firstArtist = track.artists.split(', ')[0]
   const duration = Math.round(track.durationMs / 1000)
   let result: LyricsResult
   try {
-    const exact = await getJson<LrclibRecord>(
-      `${BASE}/get?` +
-        new URLSearchParams({ track_name: track.name, artist_name: firstArtist, album_name: track.album, duration: String(duration) })
-    )
+    // Exact match and fuzzy search run in parallel; the exact match wins when it has synced lyrics.
+    const [exact, list] = await Promise.all([
+      getJson<LrclibRecord>(
+        `${BASE}/get?` +
+          new URLSearchParams({ track_name: track.name, artist_name: firstArtist, album_name: track.album, duration: String(duration) })
+      ).catch(() => null),
+      getJson<LrclibRecord[]>(`${BASE}/search?` + new URLSearchParams({ track_name: clean(track.name), artist_name: firstArtist }))
+    ])
     result = toResult(track.id, exact)
     if (result.status !== 'found') {
-      // Fall back to a fuzzy search and pick the closest duration with synced lyrics.
-      const list =
-        (await getJson<LrclibRecord[]>(
-          `${BASE}/search?` + new URLSearchParams({ track_name: clean(track.name), artist_name: firstArtist })
-        )) ?? []
-      const best = list
-        .filter((r) => Math.abs(r.duration - duration) <= 4)
+      // Closest duration wins; a different edit of a song has different timings, so stay within 3s.
+      const best = (list ?? [])
+        .filter((r) => Math.abs(r.duration - duration) <= 3)
         .sort((a, b) => Number(!!b.syncedLyrics) - Number(!!a.syncedLyrics) || Math.abs(a.duration - duration) - Math.abs(b.duration - duration))[0]
       if (best) {
         const alt = toResult(track.id, best)

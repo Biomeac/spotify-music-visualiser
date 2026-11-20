@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { DEFAULT_BACKGROUND, type AuthStatus, type LyricsResult, type PlaybackState, type Settings } from '../../../shared'
+import { useEffect, useMemo, useState } from 'react'
+import { setClockOffset, syncClock } from './clock'
+import { DEFAULT_BACKGROUND, DEFAULT_TEXT, DEFAULT_UI, type AuthStatus, type LyricsResult, type PlaybackState, type Settings } from '../../../shared'
 import { parseLrc, type Line } from './lrc'
 
 export interface AppState {
@@ -16,7 +17,7 @@ const emptyPlayback: PlaybackState = { track: null, isPlaying: false, progressMs
 
 export function useAppState(): AppState {
   const [settings, setSettings] = useState<Settings | null>(null)
-  const [auth, setAuth] = useState<AuthStatus>({ hasClientId: false, loggedIn: false, userName: null })
+  const [auth, setAuth] = useState<AuthStatus>({ hasClientId: false, loggedIn: false, userName: null, local: 'unavailable' })
   const [playback, setPlayback] = useState<PlaybackState>(emptyPlayback)
   const [lyrics, setLyrics] = useState<LyricsResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -25,6 +26,7 @@ export function useAppState(): AppState {
     window.api.init().then((s) => {
       setSettings(s.settings)
       setAuth(s.auth)
+      syncClock(s.playback)
       setPlayback(s.playback)
       setLyrics(s.lyrics)
     })
@@ -32,6 +34,7 @@ export function useAppState(): AppState {
       window.api.onSettings(setSettings),
       window.api.onAuth(setAuth),
       window.api.onPlayback((p) => {
+        syncClock(p)
         setPlayback(p)
         setError(null)
       }),
@@ -46,9 +49,13 @@ export function useAppState(): AppState {
     [lyrics, playback.track?.id, playback.track?.durationMs]
   )
 
+  // Global offset plus any offset remembered for this song.
+  const trackOffset = (playback.track && settings?.trackOffsets[playback.track.id]) || 0
+  setClockOffset((settings?.offsetMs ?? 0) + trackOffset)
+
   return {
     ready: !!settings,
-    settings: settings ?? { clientId: '', style: 'glow', offsetMs: 0, fontScale: 1, overlayVisible: false, overlayLocked: false, background: DEFAULT_BACKGROUND },
+    settings: settings ?? { clientId: '', style: 'glow', offsetMs: 0, fontScale: 1, overlayVisible: false, overlayLocked: false, background: DEFAULT_BACKGROUND, text: DEFAULT_TEXT, ui: DEFAULT_UI, trackOffsets: {} },
     auth,
     playback,
     lyrics,
@@ -57,22 +64,3 @@ export function useAppState(): AppState {
   }
 }
 
-/** Current song position in seconds, updated every animation frame and interpolated between polls. */
-export function useSongTime(playback: PlaybackState, offsetMs: number): number {
-  const [t, setT] = useState(0)
-  const ref = useRef({ playback, offsetMs })
-  ref.current = { playback, offsetMs }
-  useEffect(() => {
-    let raf = 0
-    const tick = () => {
-      const { playback: p, offsetMs: o } = ref.current
-      const elapsed = p.isPlaying ? Date.now() - p.sampledAt : 0
-      const ms = Math.min(p.progressMs + elapsed, p.track?.durationMs ?? Infinity)
-      setT((ms + o) / 1000)
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [])
-  return t
-}

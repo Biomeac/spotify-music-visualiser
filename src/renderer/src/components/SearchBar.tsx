@@ -1,9 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Track } from '../../../shared'
 
+// Re-typing a query (or backspacing) reuses earlier results instead of calling Spotify again.
+const searchCache = new Map<string, Track[]>()
+
 const fmt = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`
 
-export default function SearchBar({ onError }: { onError: (msg: string) => void }) {
+export default function SearchBar({
+  onError,
+  canSearch,
+  onNeedLogin
+}: {
+  onError: (msg: string) => void
+  canSearch: boolean
+  onNeedLogin: () => void
+}) {
   const [q, setQ] = useState('')
   const [results, setResults] = useState<Track[]>([])
   const [open, setOpen] = useState(false)
@@ -23,26 +34,41 @@ export default function SearchBar({ onError }: { onError: (msg: string) => void 
   }, [])
 
   useEffect(() => {
-    if (!q.trim()) {
+    if (q.trim().length < 2) {
       setResults([])
+      return
+    }
+    const cached = searchCache.get(q.trim().toLowerCase())
+    if (cached) {
+      setResults(cached)
+      setSel(0)
       return
     }
     const id = setTimeout(() => {
       window.api
         .search(q)
         .then((r) => {
+          searchCache.set(q.trim().toLowerCase(), r)
           setResults(r)
           setSel(0)
         })
         .catch((e) => onError(String(e.message)))
-    }, 220)
+    }, 250)
     return () => clearTimeout(id)
   }, [q, onError])
+
+  // Fetch lyrics for the highlighted result ahead of time so they're ready the moment you hit Enter.
+  useEffect(() => {
+    const t = results[sel]
+    if (!open || !t) return
+    const id = setTimeout(() => window.api.prefetchLyrics(t), 150)
+    return () => clearTimeout(id)
+  }, [results, sel, open])
 
   const play = (t: Track) => {
     setOpen(false)
     inputRef.current?.blur()
-    window.api.play(t.uri).catch((e) => onError(String(e.message).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')))
+    window.api.play(t).catch((e) => onError(String(e.message)))
   }
 
   return (
@@ -50,13 +76,20 @@ export default function SearchBar({ onError }: { onError: (msg: string) => void 
       <input
         ref={inputRef}
         value={q}
-        placeholder="Search any song   ⌘K"
+        placeholder={canSearch ? "Search any song   ⌘K" : "Connect Spotify to search   ⌘K"}
         spellCheck={false}
         onChange={(e) => {
           setQ(e.target.value)
           setOpen(true)
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          if (!canSearch) {
+            inputRef.current?.blur()
+            onNeedLogin()
+            return
+          }
+          setOpen(true)
+        }}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown') setSel((s) => Math.min(s + 1, results.length - 1))

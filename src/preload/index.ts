@@ -16,7 +16,8 @@ const api = {
   login: (): Promise<AuthStatus> => ipcRenderer.invoke('auth:login'),
   logout: (): Promise<AuthStatus> => ipcRenderer.invoke('auth:logout'),
   search: (q: string): Promise<Track[]> => ipcRenderer.invoke('spotify:search', q),
-  play: (uri: string): Promise<void> => ipcRenderer.invoke('spotify:play', uri),
+  play: (track: Track): Promise<void> => ipcRenderer.invoke('spotify:play', track),
+  prefetchLyrics: (track: Track) => ipcRenderer.invoke('lyrics:prefetch', track),
   control: (action: 'play' | 'pause' | 'next' | 'previous' | 'seek', positionMs?: number): Promise<void> =>
     ipcRenderer.invoke('spotify:control', action, positionMs),
   openExternal: (url: string) => ipcRenderer.invoke('open-external', url),

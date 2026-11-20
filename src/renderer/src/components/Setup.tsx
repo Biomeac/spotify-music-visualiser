@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { REDIRECT_URI, type AuthStatus, type Settings } from '../../../shared'
 
-export default function Setup({ settings, auth }: { settings: Settings; auth: AuthStatus }) {
+export default function Setup({ settings, auth, onClose }: { settings: Settings; auth: AuthStatus; onClose?: () => void }) {
   const [clientId, setClientId] = useState(settings.clientId)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -24,7 +24,11 @@ export default function Setup({ settings, auth }: { settings: Settings; auth: Au
     <div className="setup">
       <div className="eyebrow">Setup</div>
       <h1>Connect Spotify</h1>
-      <p className="lede">One-time setup. It takes about two minutes and keeps your account private to this Mac.</p>
+      <p className="lede">
+        {onClose
+          ? 'Lyrics already follow the Spotify app. Connect once to search from here and to follow your phone or speakers. It takes about two minutes and stays private to this Mac.'
+          : 'One-time setup. It takes about two minutes and keeps your account private to this Mac.'}
+      </p>
       <ol className="steps">
         <li>
           <span className="num">1</span>
@@ -67,6 +71,11 @@ export default function Setup({ settings, auth }: { settings: Settings; auth: Au
       <button className="primary" disabled={!/^[a-z0-9]{32}$/i.test(clientId.trim()) || busy} onClick={connect}>
         {busy ? 'Waiting for Spotify…' : auth.hasClientId ? 'Connect Spotify' : 'Save & connect Spotify'}
       </button>
+      {onClose && (
+        <button className="ghost later" onClick={onClose}>
+          Not now
+        </button>
+      )}
       {error && <p className="error">{error}</p>}
     </div>
   )

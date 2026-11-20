@@ -66,13 +66,63 @@ export interface Settings {
   overlayVisible: boolean
   overlayLocked: boolean
   background: BackgroundSettings
+  text: TextSettings
+  ui: UiSettings
+  /** Extra timing offset remembered per Spotify track id, in ms. */
+  trackOffsets: Record<string, number>
 }
 
 export interface AuthStatus {
   hasClientId: boolean
   loggedIn: boolean
   userName: string | null
+  /** Connection to the Spotify app on this Mac. */
+  local: 'ok' | 'not-running' | 'denied' | 'unavailable'
 }
+
+export type FontChoice = 'style' | 'sf' | 'rounded' | 'serif' | 'mono' | 'condensed' | 'hand'
+
+export interface TextSettings {
+  /** 'style' keeps each lyric style's own font. */
+  font: FontChoice
+  weight: number
+  align: 'left' | 'center' | 'right'
+  uppercase: boolean
+  activeColor: 'white' | 'accent' | 'custom'
+  customColor: string
+  /** Opacity of lines that aren't being sung, 0.05 to 0.7. */
+  dimOpacity: number
+  /** Glow strength, 0 to 2. */
+  glow: number
+  blurOthers: boolean
+  showNext: boolean
+  /** Animation speed multiplier, 0.5 (slow) to 2 (fast). */
+  animSpeed: number
+}
+
+export const DEFAULT_TEXT: TextSettings = {
+  font: 'style',
+  weight: 800,
+  align: 'left',
+  uppercase: false,
+  activeColor: 'white',
+  customColor: '#ffffff',
+  dimOpacity: 0.3,
+  glow: 1,
+  blurOthers: true,
+  showNext: true,
+  animSpeed: 1
+}
+
+export interface UiSettings {
+  /** Hide the search bar and player controls when the mouse is idle. */
+  autoHide: boolean
+  overlayOpacity: number
+  overlayScale: number
+  overlayShowNext: boolean
+}
+
+export const DEFAULT_UI: UiSettings = { autoHide: true, overlayOpacity: 0, overlayScale: 1, overlayShowNext: true }
 
 export const REDIRECT_PORT = 43821
 export const REDIRECT_URI = `http://127.0.0.1:${REDIRECT_PORT}/callback`

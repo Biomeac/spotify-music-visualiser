@@ -1,4 +1,5 @@
 import { memo, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { useSongTime } from '../lib/clock'
 import type { LyricStyle, Track } from '../../../shared'
 import MessagesView from './MessagesView'
 import { BounceLyrics, KineticLyrics, NeonLyrics, TypewriterLyrics } from './AnimatedStyles'
@@ -28,9 +29,9 @@ export function LineWords({ line, t }: { line: Line; t: number }) {
   )
 }
 
-const StaticLine = memo(function StaticLine({ text, state, onClick }: { text: string; state: string; onClick?: () => void }) {
+const StaticLine = memo(function StaticLine({ text, state, start, onSeek }: { text: string; state: string; start: number; onSeek?: (s: number) => void }) {
   return (
-    <div className={`line ${state}`} onClick={onClick}>
+    <div className={`line ${state}`} onClick={onSeek ? () => onSeek(start) : undefined}>
       {text || '♪'}
     </div>
   )
@@ -78,7 +79,7 @@ function ScrollingLyrics({ lines, t, style, onSeek }: Props) {
             )
           const dist = Math.abs(i - active)
           const state = i < active ? `past d${Math.min(dist, 4)}` : `future d${Math.min(dist, 4)}`
-          return <StaticLine key={i} text={line.text} state={state} onClick={onSeek ? () => onSeek(line.start) : undefined} />
+          return <StaticLine key={i} text={line.text} state={state} start={line.start} onSeek={onSeek} />
         })}
       </div>
     </div>
@@ -107,7 +108,13 @@ function FocusLyrics({ lines, t }: Props) {
   )
 }
 
-export default function LyricsView(props: Props) {
+/** Lyrics with their own per-frame clock, so the rest of the app doesn't re-render 60 times a second. */
+export default function LyricsView(props: Omit<Props, 't'>) {
+  const t = useSongTime()
+  return <StyledLyrics {...props} t={t} />
+}
+
+function StyledLyrics(props: Props) {
   if (props.style === 'focus') return <FocusLyrics {...props} />
   if (props.style === 'messages') return <MessagesView lines={props.lines} t={props.t} track={props.track ?? null} />
   if (props.style === 'kinetic') return <KineticLyrics {...props} />
