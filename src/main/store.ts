@@ -14,7 +14,8 @@ const defaults: Settings = {
   text: DEFAULT_TEXT,
   ui: DEFAULT_UI,
   messages: DEFAULT_MESSAGES,
-  trackOffsets: {}
+  trackOffsets: {},
+  autoLatency: true
 }
 
 export interface Tokens {

@@ -10,8 +10,9 @@ A Mac app that shows beautiful, time-synced lyrics for whatever you're playing o
 - **12 live backgrounds:** Fluid (Apple Music-style mesh gradient), Lava lamp, Dither, Synthwave, Hyperspace, Bokeh, Halftone, Aurora, Particles, Waves, Album art or Solid. Most run as GPU shaders. Colours come from the album or your own picks and presets, with speed, brightness, blur, film grain, and an option to pulse with each lyric line.
 - **Floating overlay** that stays on top of full-screen apps and every Space. It can be locked so clicks pass through. The ♪ menu bar icon toggles it.
 - Click any line to jump there. Use `[` and `]` to nudge timing for the current song; it is remembered per song.
+- **Tight sync:** a live connection to the Spotify app reads the exact playback position five times a second, controls reach Spotify instantly, Bluetooth headphone delay (AirPods etc.) is detected and matched automatically, and if a song's lyrics file is off you can press T the moment a line starts to fix it for good. LRCLIB lyrics are timed per line, so the word-by-word highlight is paced by syllables.
 - **Customise** fonts, weight, alignment, sung-word colour, glow, dimming, blur, animation speed, ALL CAPS, background, overlay size and backdrop, and auto-hiding controls.
-- Shortcuts: Space play/pause, ←/→ seek 5s, N/P next/previous, 1–9 styles, C cycle styles, [ / ] nudge timing, ⌘K search, O overlay, F full screen, S customise.
+- Shortcuts: Space play/pause, ←/→ seek 5s, N/P next/previous, 1–9 styles, C cycle styles, T tap-to-sync, [ / ] nudge timing, ⌘K search, O overlay, F full screen, S customise.
 
 ## How it connects
 - **Spotify app on this Mac (automatic, no sign-in).** Like DJ apps, it reads the Spotify desktop app directly, so lyrics follow along with no setup, no rate limits and millisecond-accurate timing. macOS asks once for permission to control Spotify. Play, pause, skip, seek and playing a searched song all go through the app, and playing a specific song works without Premium.

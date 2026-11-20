@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppState } from './lib/useAppState'
 import { useArtPalette } from './lib/useArtColor'
-import { useActiveLine, songPositionMs } from './lib/clock'
+import { useActiveLine, songPositionMs, songTime } from './lib/clock'
 import { lookFor } from './lib/look'
 import { plainToLines } from './lib/lrc'
 import Background from './components/Background'
@@ -55,12 +55,12 @@ export default function App() {
   }, [])
 
   // Keyboard shortcuts.
-  const stateRef = useRef({ settings, playback })
-  stateRef.current = { settings, playback }
+  const stateRef = useRef({ settings, playback, lines })
+  stateRef.current = { settings, playback, lines }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName === 'INPUT' || e.metaKey || e.ctrlKey) return
-      const { settings: s, playback: p } = stateRef.current
+      const { settings: s, playback: p, lines: ls } = stateRef.current
       const trackId = p.track?.id
       const nudge = (ms: number) => {
         if (!trackId) return
@@ -76,7 +76,21 @@ export default function App() {
       else if (e.key === 'ArrowLeft') window.api.control('seek', songPositionMs() - 5000).catch(onError)
       else if (e.key === ']') nudge(e.shiftKey ? 500 : 100)
       else if (e.key === '[') nudge(e.shiftKey ? -500 : -100)
-      else if (e.key === 'n') window.api.control('next').catch(onError)
+      else if (e.key === 't' && trackId) {
+        // Tap-to-sync: press T the moment you hear a line start. The nearest line is moved to now.
+        const now = songTime() - 0.1 // typical reaction time
+        const near = ls.filter((l) => l.text).reduce<{ d: number } | null>((best, l) => {
+          const d = l.start - now
+          return Math.abs(d) < 4 && (!best || Math.abs(d) < Math.abs(best.d)) ? { d } : best
+        }, null)
+        if (!near) setToast('Press T right as a line starts to sync this song')
+        else {
+          const cur = s.trackOffsets[trackId] ?? 0
+          const next = Math.round((cur + near.d * 1000) / 10) * 10
+          window.api.setSettings({ trackOffsets: { ...s.trackOffsets, [trackId]: next } })
+          setToast(`Synced. This song's timing: ${next > 0 ? '+' : ''}${(next / 1000).toFixed(2)}s`)
+        }
+      } else if (e.key === 'n') window.api.control('next').catch(onError)
       else if (e.key === 'p') window.api.control('previous').catch(onError)
       else if (e.key === 's') setShowSettings((v) => !v)
       else if (e.key === 'o') window.api.setSettings({ overlayVisible: !s.overlayVisible })
@@ -175,7 +189,7 @@ export default function App() {
       <main className="stage">{body}</main>
       {connected && <NowPlaying playback={playback} onError={onError} />}
       {(toast || pollError) && <div className="toast">{toast ?? pollError}</div>}
-      {showSettings && <SettingsPanel settings={settings} auth={auth} track={track} onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsPanel settings={settings} auth={auth} track={track} output={{ name: playback.outputName ?? null, latencyMs: playback.outputLatencyMs ?? 0 }} onClose={() => setShowSettings(false)} />}
     </div>
   )
 }

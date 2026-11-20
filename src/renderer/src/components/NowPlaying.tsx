@@ -1,3 +1,4 @@
+import { Pause, Play, SkipBack, SkipForward } from 'lucide-react'
 import { useSongTime, songPositionMs } from '../lib/clock'
 import type { PlaybackState } from '../../../shared'
 
@@ -40,13 +41,13 @@ export default function NowPlaying({ playback, onError }: { playback: PlaybackSt
       </div>
       <div className="np-controls">
         <button onClick={() => ctl('previous')} aria-label="Previous" title="Previous (P)">
-          ⏮
+          <SkipBack size={20} fill="currentColor" strokeWidth={1.5} />
         </button>
         <button className="pp" onClick={() => ctl(playback.isPlaying ? 'pause' : 'play')} aria-label="Play or pause" title="Play/pause (Space)">
-          {playback.isPlaying ? '❚❚' : '▶'}
+          {playback.isPlaying ? <Pause size={20} fill="currentColor" strokeWidth={0} /> : <Play size={20} fill="currentColor" strokeWidth={0} style={{ marginLeft: 2 }} />}
         </button>
         <button onClick={() => ctl('next')} aria-label="Next" title="Next (N)">
-          ⏭
+          <SkipForward size={20} fill="currentColor" strokeWidth={1.5} />
         </button>
       </div>
       <Progress durationMs={track.durationMs} />

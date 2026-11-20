@@ -17,6 +17,10 @@ export interface PlaybackState {
   /** Local Date.now() when progressMs was sampled, used to interpolate between polls. */
   sampledAt: number
   device: string | null
+  /** Extra delay of the current audio output (e.g. Bluetooth headphones), in ms. */
+  outputLatencyMs?: number
+  /** Name of the current audio output, when known. */
+  outputName?: string | null
 }
 
 export interface LyricsResult {
@@ -96,6 +100,8 @@ export interface Settings {
   messages: MessagesSettings
   /** Extra timing offset remembered per Spotify track id, in ms. */
   trackOffsets: Record<string, number>
+  /** Delay lyrics automatically to match Bluetooth headphones and speakers. */
+  autoLatency: boolean
 }
 
 export interface AuthStatus {
@@ -159,9 +165,11 @@ export interface MessagesSettings {
   liveTyping: boolean
   /** Tilt the phone in 3D as the mouse moves. */
   tilt: boolean
+  /** Show the iOS keyboard while your lines are being typed. */
+  keyboard: boolean
 }
 
-export const DEFAULT_MESSAGES: MessagesSettings = { theme: 'dark', bubble: 'blue', effects: true, liveTyping: true, tilt: true }
+export const DEFAULT_MESSAGES: MessagesSettings = { theme: 'dark', bubble: 'blue', effects: true, liveTyping: true, tilt: true, keyboard: true }
 
 export const REDIRECT_PORT = 43821
 export const REDIRECT_URI = `http://127.0.0.1:${REDIRECT_PORT}/callback`

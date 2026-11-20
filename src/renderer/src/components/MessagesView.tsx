@@ -3,6 +3,7 @@ import type { MessagesSettings, Track } from '../../../shared'
 import { activeLineIndex, wordProgress, type Line } from '../lib/lrc'
 import { applyLiveTyping, toThread, type ScreenEffect, type TextItem, type VoiceItem } from '../lib/threads'
 import { hash } from '../lib/hash'
+import { ArrowUp, ChevronLeft, ChevronRight, Delete, Mic, Pause, Play, Plus, Smile, Video, ArrowBigUp } from 'lucide-react'
 
 const VISIBLE = 11
 const fmtClock = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M/i, '')
@@ -20,22 +21,99 @@ function StatusBar() {
   return (
     <div className="ios-status">
       <span className="clock">{fmtClock(now)}</span>
-      <span className="island" />
+      <span className="island">
+        <i className="lens" />
+      </span>
       <span className="icons">
-        <i className="signal">
-          <b />
-          <b />
-          <b />
-          <b />
-        </i>
-        <i className="wifi" />
-        <i className="battery">
-          <b />
-        </i>
+        <svg width="18" height="12" viewBox="0 0 18 12" aria-hidden>
+          <rect x="0" y="7.5" width="3.2" height="4.5" rx="1" fill="currentColor" />
+          <rect x="4.8" y="5" width="3.2" height="7" rx="1" fill="currentColor" />
+          <rect x="9.6" y="2.5" width="3.2" height="9.5" rx="1" fill="currentColor" />
+          <rect x="14.4" y="0" width="3.2" height="12" rx="1" fill="currentColor" />
+        </svg>
+        <svg width="16" height="12" viewBox="0 0 16 12" aria-hidden>
+          <path d="M8 11.6 5.55 9.05a3.5 3.5 0 0 1 4.9 0Z" fill="currentColor" />
+          <path d="M3.55 7.05a6.4 6.4 0 0 1 8.9 0" stroke="currentColor" strokeWidth="1.9" fill="none" strokeLinecap="round" />
+          <path d="M1.2 4.4a9.9 9.9 0 0 1 13.6 0" stroke="currentColor" strokeWidth="1.9" fill="none" strokeLinecap="round" />
+        </svg>
+        <svg width="28" height="13" viewBox="0 0 28 13" aria-hidden>
+          <rect x=".6" y=".6" width="23.8" height="11.8" rx="3.8" fill="none" stroke="currentColor" strokeOpacity=".4" strokeWidth="1.1" />
+          <rect x="2.2" y="2.2" width="17.5" height="8.6" rx="2.3" fill="currentColor" />
+          <path d="M26 4.4v4.2c.8-.3 1.4-1.1 1.4-2.1s-.6-1.8-1.4-2.1Z" fill="currentColor" fillOpacity=".45" />
+        </svg>
       </span>
     </div>
   )
 }
+
+/** The iMessage bubble tail, drawn the way iOS does: a little hook off the bottom corner. */
+function Tail({ side }: { side: 'in' | 'out' }) {
+  return (
+    <svg className={`tail-svg ${side}`} width="22" height="22" viewBox="0 0 22 22" aria-hidden>
+      <path d="M0 3H16C16 11.5 18.2 17.6 22 21.4 16.9 22.3 12.2 21.1 9.4 18.8 6.6 21.1 3.6 22 0 22Z" fill="currentColor" />
+    </svg>
+  )
+}
+
+const KEY_ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
+
+/** The iOS keyboard, with the key being "pressed" popping up as your line is typed. */
+function Keyboard({ pressed, up }: { pressed: string; up: boolean }) {
+  const k = pressed.toLowerCase()
+  return (
+    <div className={`ios-kb ${up ? 'up' : ''}`}>
+      <div className="kb-inner">
+        {KEY_ROWS.map((row, r) => (
+          <div key={r} className={`kb-row r${r}`}>
+            {r === 2 && (
+              <span className="key fn shift">
+                <ArrowBigUp size={20} strokeWidth={1.6} />
+              </span>
+            )}
+            {row.split('').map((c) => (
+              <span key={c} className={`key ${k === c ? 'pressed' : ''}`}>
+                {c}
+                {k === c && <b className="pop">{c}</b>}
+              </span>
+            ))}
+            {r === 2 && (
+              <span className={`key fn del`}>
+                <Delete size={20} strokeWidth={1.6} />
+              </span>
+            )}
+          </div>
+        ))}
+        <div className="kb-row r3">
+          <span className="key fn wide">123</span>
+          <span className={`key space ${k === ' ' ? 'pressed' : ''}`}>space</span>
+          <span className="key fn wide">return</span>
+        </div>
+        <div className="kb-bottom">
+          <Smile size={25} strokeWidth={1.5} />
+          <Mic size={23} strokeWidth={1.5} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Keeps the phone at true iPhone proportions and scales it to fit the window. */
+function usePhoneScale() {
+  const ref = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(0.8)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const fit = () => setScale(Math.min((el.clientHeight - 16) / PHONE_H, (el.clientWidth - 32) / PHONE_W, 1.15))
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  return [ref, scale] as const
+}
+const PHONE_W = 434
+const PHONE_H = 906
 
 function Avatar({ name, color, art, size = 28 }: { name: string; color: string; art?: string | null; size?: number }) {
   return (
@@ -108,7 +186,7 @@ function VoiceNote({ item, t }: { item: VoiceItem; t: number }) {
   const playing = p > 0 && p < 1
   return (
     <div className={`voice ${playing ? 'playing' : ''}`}>
-      <span className="vplay">{playing ? '❚❚' : '▶'}</span>
+      <span className="vplay">{playing ? <Pause size={15} fill="currentColor" strokeWidth={0} /> : <Play size={15} fill="currentColor" strokeWidth={0} />}</span>
       <span className="wave">
         {Array.from({ length: 28 }, (_, i) => {
           const hgt = 0.25 + 0.75 * Math.abs(Math.sin(i * 1.7 + hash(item.id, i) * 3))
@@ -202,29 +280,46 @@ export default function MessagesView({ lines, t, track, settings }: { lines: Lin
   const title = group ? artists.join(', ') : (artists[0] ?? 'Unknown')
   const bubbleClass = `bub-${settings.bubble}`
 
+  const [stageRef, scale] = usePhoneScale()
+  const keyboardUp =
+    settings.keyboard !== false && settings.liveTyping && (!!composing || (!!lastOut && lastOut.kind === 'text' && t - lastOut.appearAt < 1.6 && !!pending.find((it) => it.side === 'out' && it.appearAt - t < 4)))
+  const pressed = composing && typed ? typed[typed.length - 1] : ''
+  const unread = (hash(track?.id ?? 'x') * 40 + 3) | 0
+
   return (
-    <div className={`lyrics style-messages theme-${settings.theme} ${bubbleClass}`}>
-      <div className={`phone-wrap ${settings.tilt ? 'tilt' : ''}`} ref={phoneRef}>
+    <div className={`lyrics style-messages theme-${settings.theme} ${bubbleClass}`} ref={stageRef}>
+      <div className={`phone-wrap ${settings.tilt ? 'tilt' : ''}`} ref={phoneRef} style={{ '--s': scale } as CSSProperties}>
         <div className={`iphone ${slam ? 'shake' : ''}`} key={slam?.id ?? 'phone'}>
+          <i className="hw action" />
+          <i className="hw vol-up" />
+          <i className="hw vol-down" />
+          <i className="hw power" />
+          <i className="hw cam" />
           <div className="screen">
             <StatusBar />
             <div className="ios-header">
-              <span className="back">‹<b>{(hash(track?.id ?? 'x') * 40 + 3) | 0}</b></span>
+              <span className="back">
+                <ChevronLeft size={32} strokeWidth={2.3} />
+                <b>{unread}</b>
+              </span>
               <div className="who">
                 {group ? (
                   <span className="stack">
                     {artists.slice(0, 3).map((a, i) => (
-                      <Avatar key={a} name={a} color={['#ff9f0a', '#30d158', '#64d2ff'][i]} size={30} />
+                      <Avatar key={a} name={a} color={['#ff9f0a', '#30d158', '#64d2ff'][i]} size={40} />
                     ))}
                   </span>
                 ) : (
-                  <Avatar name={title} color="#8e8e93" art={track?.artUrl} size={46} />
+                  <Avatar name={title} color="#8e8e93" art={track?.artUrl} size={52} />
                 )}
                 <span className="who-name">
-                  {title} <em>›</em>
+                  {title}
+                  <ChevronRight size={11} strokeWidth={2.6} />
                 </span>
               </div>
-              <span className="video" />
+              <span className="video">
+                <Video size={27} strokeWidth={1.7} />
+              </span>
             </div>
 
             <div className="thread">
@@ -240,9 +335,9 @@ export default function MessagesView({ lines, t, track, settings }: { lines: Lin
                   const sameAsPrev = prev && prev.side === it.side && prev.sender.name === it.sender.name
                   const sameAsNext = next && next.side === it.side && next.sender.name === it.sender.name
                   const typingAfter = !next && typing && nextIn?.side === it.side
-                  const tail = !sameAsNext && !typingAfter
+                  const tail = !sameAsNext && !typingAfter && it.kind !== 'link'
                   const showName = group && it.side === 'in' && !sameAsPrev
-                  const showAvatar = group && it.side === 'in' && tail
+                  const showAvatar = group && it.side === 'in' && !sameAsNext && !typingAfter
 
                   let bubble
                   if (it.kind === 'link')
@@ -278,6 +373,7 @@ export default function MessagesView({ lines, t, track, settings }: { lines: Lin
                           className={`bubble ${it.side} ${tail ? 'tail' : ''} ${it.kind} ${fxClass} ${it.kind === 'text' && it.index === active ? 'live' : ''}`}
                         >
                           {bubble}
+                          {tail && <Tail side={it.side} />}
                         </div>
                       </div>
                       {it === lastOut && <div className="receipt">{readAfter ? <>Read {startedAt}</> : 'Delivered'}</div>}
@@ -292,10 +388,11 @@ export default function MessagesView({ lines, t, track, settings }: { lines: Lin
                           <Avatar name={nextIn.sender.name} color={nextIn.sender.color} size={26} />
                         </span>
                       )}
-                      <div className="bubble typing in tail">
+                      <div className="bubble typing in">
                         <i />
                         <i />
                         <i />
+                        <span className="typing-tail" />
                       </div>
                     </div>
                   </div>
@@ -304,7 +401,9 @@ export default function MessagesView({ lines, t, track, settings }: { lines: Lin
             </div>
 
             <div className="composer">
-              <span className="plus">+</span>
+              <span className="plus">
+                <Plus size={22} strokeWidth={2.2} />
+              </span>
               <div className={`ios-field ${typed ? 'has-text' : ''}`}>
                 {typed ? (
                   <>
@@ -314,11 +413,22 @@ export default function MessagesView({ lines, t, track, settings }: { lines: Lin
                 ) : (
                   <span className="ph">iMessage</span>
                 )}
-                <span className={`send ${typed ? 'ready' : ''}`}>{typed ? '↑' : '🎙'}</span>
+                {typed ? (
+                  <span className="send ready">
+                    <ArrowUp size={19} strokeWidth={3} />
+                  </span>
+                ) : (
+                  <span className="send">
+                    <Mic size={19} strokeWidth={1.8} />
+                  </span>
+                )}
               </div>
             </div>
+            <Keyboard pressed={pressed} up={keyboardUp} />
+            <div className={`safe ${keyboardUp ? '' : 'on'}`} />
             <div className="home-bar" />
             {fx?.screen && <ScreenFx kind={fx.screen} seed={fx.id} key={fx.id} />}
+            <div className="glare" />
           </div>
         </div>
       </div>

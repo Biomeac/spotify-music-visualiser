@@ -4,6 +4,7 @@ import * as spotify from './spotify'
 import { fetchLyrics } from './lyrics'
 import * as local from './local'
 import { getSettings, updateSettings } from './store'
+import { currentOutput, detectOutput } from './output'
 import type { AuthStatus, LyricsResult, PlaybackState, Settings, Track } from '../shared'
 
 let mainWin: BrowserWindow | null = null
@@ -131,7 +132,8 @@ const estimateProgress = () =>
 
 function setPlayback(next: PlaybackState) {
   const changed = next.track?.id !== playback.track?.id
-  playback = next
+  const out = currentOutput()
+  playback = { ...next, outputLatencyMs: out.latencyMs, outputName: out.name }
   broadcast('playback', playback)
   if (changed) {
     refreshTray()
@@ -174,7 +176,9 @@ async function poll() {
   polling = true
   const startedEpoch = epoch
   try {
-    let next = await local.localNowPlaying()
+    // The live reader is usually fresh; only start osascript when it isn't.
+    const live = local.liveState()
+    let next = live !== undefined ? live : await local.localNowPlaying()
     if (local.localStatus() !== lastLocalStatus) {
       lastLocalStatus = local.localStatus()
       broadcast('auth', authStatus())
@@ -203,7 +207,7 @@ function scheduleNext() {
   let delay: number
   if (source === 'local') {
     // Reading the local app is cheap, so read it often for tight sync.
-    delay = !playback.track ? 1500 : playback.isPlaying ? 500 : 1000
+    delay = local.liveState() !== undefined ? 2000 : !playback.track ? 1500 : playback.isPlaying ? 500 : 1000
     if (!anyWindowVisible()) delay = 3000
     if (Date.now() < fastUntil) delay = 250
   } else {
@@ -226,6 +230,35 @@ function scheduleNext() {
 
 function startPolling() {
   poll().then(scheduleNext)
+  local.startLive(onLiveReading)
+  // Check the audio output now and then (headphones connected or removed).
+  const checkOutput = () =>
+    detectOutput().then((o) => {
+      if (o.latencyMs !== playback.outputLatencyMs || o.name !== playback.outputName) setPlayback(playback)
+    })
+  checkOutput()
+  setInterval(checkOutput, 20000)
+}
+
+/** Readings that arrive while a command is on its way to Spotify would undo the optimistic update. */
+let holdLiveUntil = 0
+let lastLiveBroadcast = 0
+
+function onLiveReading(next: PlaybackState | null) {
+  if (local.localStatus() !== lastLocalStatus) {
+    lastLocalStatus = local.localStatus()
+    broadcast('auth', authStatus())
+  }
+  if (!next || next.sampledAt < holdLiveUntil) return
+  if (!next.track && spotify.isLoggedIn() && source === 'web') return // following another device
+  source = 'local'
+  // Only tell the windows when something changed: a new song, play/pause, or the clock moved.
+  const drift = Math.abs(next.progressMs - (playback.progressMs + (playback.isPlaying ? next.sampledAt - playback.sampledAt : 0)))
+  const changed = next.track?.id !== playback.track?.id || next.isPlaying !== playback.isPlaying || drift > 25
+  if (changed || Date.now() - lastLiveBroadcast > 1000) {
+    lastLiveBroadcast = Date.now()
+    setPlayback(next)
+  }
 }
 
 /** After a user action: ignore in-flight polls, poll quickly for a few seconds. */
@@ -273,6 +306,7 @@ ipcMain.handle('spotify:play', async (_e, track: Track) => {
   const prev = playback
   setPlayback({ track, isPlaying: true, progressMs: 0, sampledAt: Date.now(), device: playback.device })
   epoch++
+  holdLiveUntil = Infinity
   try {
     if (process.platform === 'darwin' && local.localUsable()) await local.localPlay(track.uri)
     else await spotify.play(track.uri)
@@ -282,6 +316,7 @@ ipcMain.handle('spotify:play', async (_e, track: Track) => {
     setPlayback(prev)
     throw e
   } finally {
+    holdLiveUntil = Date.now() + 150
     afterAction()
   }
 })
@@ -291,10 +326,13 @@ ipcMain.handle('spotify:control', async (_e, action: Parameters<typeof spotify.c
   if (action === 'play') setPlayback({ ...playback, isPlaying: true, progressMs: estimateProgress(), sampledAt: now })
   if (action === 'seek') setPlayback({ ...playback, progressMs: Math.max(0, pos ?? 0), sampledAt: now })
   epoch++
+  holdLiveUntil = Infinity
   try {
     if (source === 'local' || (source === 'none' && local.localUsable())) await local.localControl(action, pos)
     else await spotify.control(action, pos)
   } finally {
+    // Give Spotify a moment to apply it (seeking re-buffers) before trusting readings again.
+    holdLiveUntil = Date.now() + (action === 'seek' ? 150 : 60)
     afterAction()
   }
 })
@@ -322,3 +360,5 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
+
+app.on('will-quit', () => local.stopLive())

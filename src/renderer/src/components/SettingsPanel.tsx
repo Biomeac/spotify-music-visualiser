@@ -107,7 +107,7 @@ function Seg<T extends string>({ value, options, onChange }: { value: T; options
 
 const secs = (ms: number) => `${ms > 0 ? '+' : ''}${(ms / 1000).toFixed(2)}s`
 
-export default function SettingsPanel({ settings, auth, track, onClose }: { settings: Settings; auth: AuthStatus; track: Track | null; onClose: () => void }) {
+export default function SettingsPanel({ settings, auth, track, output, onClose }: { settings: Settings; auth: AuthStatus; track: Track | null; output?: { name: string | null; latencyMs: number }; onClose: () => void }) {
   const [tab, setTab] = useState<Tab>('style')
   const set = (patch: Partial<Settings>) => window.api.setSettings(patch)
   const bg = settings.background
@@ -172,6 +172,9 @@ export default function SettingsPanel({ settings, auth, track, onClose }: { sett
                 </Toggle>
                 <Toggle checked={msg.liveTyping} onChange={(v) => setMsg({ liveTyping: v })}>
                   Type your lines live in the text box, then send
+                </Toggle>
+                <Toggle checked={msg.keyboard !== false} onChange={(v) => setMsg({ keyboard: v })}>
+                  Show the keyboard while typing
                 </Toggle>
                 <Toggle checked={msg.tilt} onChange={(v) => setMsg({ tilt: v })}>
                   Tilt the phone with the mouse
@@ -305,7 +308,7 @@ export default function SettingsPanel({ settings, auth, track, onClose }: { sett
               <>
                 <Slider label="Offset" value={songOffset} min={-3000} max={3000} step={50} onChange={setSongOffset} fmt={secs} />
                 <small className="hint">
-                  Remembered for “{track.name}”. Shortcut: <kbd>[</kbd> / <kbd>]</kbd> moves 0.1s, hold Shift for 0.5s.
+                  Fastest fix: press <kbd>T</kbd> the moment you hear a line start, and this song snaps into sync. Or use <kbd>[</kbd> / <kbd>]</kbd> to move 0.1s (Shift for 0.5s). Remembered for “{track.name}”.
                 </small>
               </>
             ) : (
@@ -313,8 +316,14 @@ export default function SettingsPanel({ settings, auth, track, onClose }: { sett
             )}
             <div className="eyebrow">All songs</div>
             <Slider label="Offset" value={settings.offsetMs} min={-3000} max={3000} step={50} onChange={(v) => set({ offsetMs: v })} fmt={secs} />
+            <small className="hint">Move right if lyrics appear late on every song, left if they appear early.</small>
+            <Toggle checked={settings.autoLatency !== false} onChange={(v) => set({ autoLatency: v })}>
+              Match Bluetooth headphone delay
+            </Toggle>
             <small className="hint">
-              Use this for a constant delay, such as Bluetooth headphones or AirPlay speakers. Move right if lyrics appear late.
+              {output?.name
+                ? `Playing through ${output.name}${output.latencyMs ? `, so lyrics wait ${(output.latencyMs / 1000).toFixed(2)}s for the sound.` : '. No delay needed.'}`
+                : 'Detects AirPods and other Bluetooth outputs, which play a moment after Spotify’s clock.'}
             </small>
             <div className="eyebrow">Connection</div>
             <small className="hint">
@@ -358,6 +367,7 @@ export default function SettingsPanel({ settings, auth, track, onClose }: { sett
               <span><kbd>←</kbd> <kbd>→</kbd> Back / forward 5s</span>
               <span><kbd>N</kbd> <kbd>P</kbd> Next / previous</span>
               <span><kbd>[</kbd> <kbd>]</kbd> Nudge timing</span>
+              <span><kbd>T</kbd> Tap to sync this song</span>
               <span><kbd>1</kbd>–<kbd>9</kbd> <kbd>C</kbd> Switch style</span>
               <span><kbd>⌘K</kbd> Search</span>
               <span><kbd>O</kbd> Overlay</span>

@@ -24,8 +24,10 @@ export function syncClock(p: PlaybackState) {
   const measured = p.progressMs + (p.isPlaying ? Date.now() - p.sampledAt : 0)
   const current = raw(now)
   const drift = measured - current
-  const snap = p.track?.id !== trackId || p.isPlaying !== playing || Math.abs(drift) > 900
-  anchorPos = snap ? measured : current + drift * 0.3
+  // Readings from the Spotify app are precise to a few ms, so follow them closely; only tiny
+  // differences are smoothed so the highlight never jumps backwards visibly.
+  const snap = p.track?.id !== trackId || p.isPlaying !== playing || Math.abs(drift) > (p.device === 'This Mac' ? 250 : 700)
+  anchorPos = snap ? measured : current + drift * (p.device === 'This Mac' ? 0.4 : 0.25)
   anchorAt = now
   playing = p.isPlaying
   duration = p.track?.durationMs ?? Infinity
@@ -36,8 +38,8 @@ export function setClockOffset(ms: number) {
   offsetMs = ms
 }
 
-// Highlights land a touch early to cover screen refresh and CSS transition time.
-const VISUAL_LEAD_MS = 80
+// Highlights land a touch early to cover screen refresh and the first frames of each transition.
+const VISUAL_LEAD_MS = 60
 
 /** Song position in seconds, including the user's timing offset. */
 export function songTime(): number {

@@ -51,11 +51,13 @@ export function useAppState(): AppState {
 
   // Global offset plus any offset remembered for this song.
   const trackOffset = (playback.track && settings?.trackOffsets[playback.track.id]) || 0
-  setClockOffset((settings?.offsetMs ?? 0) + trackOffset)
+  // Bluetooth headphones play the audio a little later than Spotify's clock says.
+  const latency = settings?.autoLatency === false ? 0 : (playback.outputLatencyMs ?? 0)
+  setClockOffset((settings?.offsetMs ?? 0) + trackOffset - latency)
 
   return {
     ready: !!settings,
-    settings: settings ?? { clientId: '', style: 'glow', offsetMs: 0, fontScale: 1, overlayVisible: false, overlayLocked: false, background: DEFAULT_BACKGROUND, text: DEFAULT_TEXT, ui: DEFAULT_UI, messages: DEFAULT_MESSAGES, trackOffsets: {} },
+    settings: settings ?? { clientId: '', style: 'glow', offsetMs: 0, fontScale: 1, overlayVisible: false, overlayLocked: false, background: DEFAULT_BACKGROUND, text: DEFAULT_TEXT, ui: DEFAULT_UI, messages: DEFAULT_MESSAGES, trackOffsets: {}, autoLatency: true },
     auth,
     playback,
     lyrics,

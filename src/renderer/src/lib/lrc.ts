@@ -49,19 +49,31 @@ export function parseLrc(lrc: string, durationSec?: number): Line[] {
   return lines
 }
 
-function estimateSingEnd(text: string, start: number, end: number) {
-  if (!text) return start
-  const words = text.split(' ').length
-  // Rough singing pace; stops a long instrumental gap from stretching the last words.
-  const guess = Math.max(1, text.length * 0.075 + words * 0.08)
-  return start + Math.min(end - start, guess)
+/** Rough syllable count: vowel groups, ignoring a silent final "e". Good enough for pacing. */
+export function syllables(word: string): number {
+  const w = word.toLowerCase().replace(/[^a-z\u00c0-\u024f]/g, '')
+  if (!w) return word.replace(/[^\p{L}\p{N}]/gu, '').length ? 1 : 0 // non-Latin scripts: one beat per word
+  const groups = w.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '').replace(/^y/, '').match(/[aeiouy\u00c0-\u024f]{1,2}/g)
+  return Math.max(1, groups?.length ?? 1)
 }
 
-/** Spreads the line's duration across its words, weighted by length. */
+function estimateSingEnd(text: string, start: number, end: number) {
+  if (!text) return start
+  const gap = end - start
+  const beats = text.split(' ').reduce((n, w) => n + syllables(w), 0)
+  // About 4–5 syllables a second in most pop vocals.
+  const guess = Math.max(0.8, beats * 0.23 + 0.3)
+  // When the next line follows closely, the singing fills almost all of the gap. Only a long
+  // pause after the line (an instrumental break) is left out of the estimate.
+  if (gap <= guess * 1.6) return start + gap * 0.92
+  return start + Math.min(gap, guess * 1.15)
+}
+
+/** Spreads the line's singing time across its words by syllables, so long words take longer. */
 export function estimateWords(text: string, start: number, end: number): Word[] {
   if (!text) return []
   const parts = text.split(' ')
-  const weights = parts.map((w) => w.replace(/[^\p{L}\p{N}]/gu, '').length + 1.5)
+  const weights = parts.map((w) => syllables(w) + 0.35)
   const total = weights.reduce((a, b) => a + b, 0)
   const span = Math.max(0, end - start)
   let t = start
