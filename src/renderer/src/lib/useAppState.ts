@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { setClockOffset, syncClock } from './clock'
-import { DEFAULT_BACKGROUND, DEFAULT_TEXT, DEFAULT_UI, type AuthStatus, type LyricsResult, type PlaybackState, type Settings } from '../../../shared'
+import { DEFAULT_BACKGROUND, DEFAULT_MESSAGES, DEFAULT_TEXT, DEFAULT_UI, type AuthStatus, type LyricsResult, type PlaybackState, type Settings } from '../../../shared'
 import { parseLrc, type Line } from './lrc'
 
 export interface AppState {
@@ -55,7 +55,7 @@ export function useAppState(): AppState {
 
   return {
     ready: !!settings,
-    settings: settings ?? { clientId: '', style: 'glow', offsetMs: 0, fontScale: 1, overlayVisible: false, overlayLocked: false, background: DEFAULT_BACKGROUND, text: DEFAULT_TEXT, ui: DEFAULT_UI, trackOffsets: {} },
+    settings: settings ?? { clientId: '', style: 'glow', offsetMs: 0, fontScale: 1, overlayVisible: false, overlayLocked: false, background: DEFAULT_BACKGROUND, text: DEFAULT_TEXT, ui: DEFAULT_UI, messages: DEFAULT_MESSAGES, trackOffsets: {} },
     auth,
     playback,
     lyrics,

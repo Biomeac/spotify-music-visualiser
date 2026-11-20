@@ -12,7 +12,7 @@ import NowPlaying from './components/NowPlaying'
 import SettingsPanel from './components/SettingsPanel'
 import type { LyricStyle } from '../../shared'
 
-const STYLE_KEYS: LyricStyle[] = ['glow', 'karaoke', 'focus', 'messages', 'kinetic', 'neon', 'typewriter', 'bounce']
+const STYLE_KEYS: LyricStyle[] = ['glow', 'karaoke', 'focus', 'messages', 'kinetic', 'neon', 'typewriter', 'bounce', 'poster', 'vinyl', 'glitch', 'cinema', 'wave']
 const clean = (m: string) => m.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
 export default function App() {
@@ -81,7 +81,8 @@ export default function App() {
       else if (e.key === 's') setShowSettings((v) => !v)
       else if (e.key === 'o') window.api.setSettings({ overlayVisible: !s.overlayVisible })
       else if (e.key === 'f') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()
-      else if (/^[1-8]$/.test(e.key)) {
+      else if (e.key === 'c') window.api.setSettings({ style: STYLE_KEYS[(STYLE_KEYS.indexOf(s.style) + 1) % STYLE_KEYS.length] })
+      else if (/^[1-9]$/.test(e.key)) {
         const style = STYLE_KEYS[Number(e.key) - 1]
         window.api.setSettings({ style })
       }
@@ -114,7 +115,7 @@ export default function App() {
         </p>
       </div>
     )
-  else if (lines.length) body = <LyricsView lines={lines} track={track} style={settings.style} onSeek={onSeek} />
+  else if (lines.length) body = <LyricsView lines={lines} track={track} style={settings.style} onSeek={onSeek} messages={settings.messages} />
   else if (lyrics?.status === 'plain-only' && lyrics.plain)
     body = (
       <div className="lyrics plain">
@@ -146,7 +147,7 @@ export default function App() {
     )
 
   return (
-    <div className={`app ${look.className} ${hideChrome ? 'chrome-hidden' : ''}`} style={look.style}>
+    <div className={`app ${look.className} ${hideChrome ? 'chrome-hidden' : ''} ${playback.isPlaying ? 'is-playing' : ''}`} style={look.style}>
       <Background
         bg={settings.background}
         colors={palette.colors}

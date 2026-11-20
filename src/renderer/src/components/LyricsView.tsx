@@ -1,7 +1,8 @@
 import { memo, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { useSongTime } from '../lib/clock'
-import type { LyricStyle, Track } from '../../../shared'
+import { DEFAULT_MESSAGES, type LyricStyle, type MessagesSettings, type Track } from '../../../shared'
 import MessagesView from './MessagesView'
+import { CinemaLyrics, GlitchLyrics, PosterLyrics, VinylLyrics, WaveLyrics } from './MoreStyles'
 import { BounceLyrics, KineticLyrics, NeonLyrics, TypewriterLyrics } from './AnimatedStyles'
 import { activeLineIndex, wordProgress, type Line } from '../lib/lrc'
 
@@ -11,6 +12,7 @@ interface Props {
   style: LyricStyle
   onSeek?: (sec: number) => void
   track?: Track | null
+  messages?: MessagesSettings
 }
 
 export function LineWords({ line, t }: { line: Line; t: number }) {
@@ -116,10 +118,15 @@ export default function LyricsView(props: Omit<Props, 't'>) {
 
 function StyledLyrics(props: Props) {
   if (props.style === 'focus') return <FocusLyrics {...props} />
-  if (props.style === 'messages') return <MessagesView lines={props.lines} t={props.t} track={props.track ?? null} />
+  if (props.style === 'messages') return <MessagesView lines={props.lines} t={props.t} track={props.track ?? null} settings={props.messages ?? DEFAULT_MESSAGES} />
   if (props.style === 'kinetic') return <KineticLyrics {...props} />
   if (props.style === 'neon') return <NeonLyrics {...props} />
   if (props.style === 'typewriter') return <TypewriterLyrics {...props} />
   if (props.style === 'bounce') return <BounceLyrics {...props} />
+  if (props.style === 'poster') return <PosterLyrics {...props} />
+  if (props.style === 'vinyl') return <VinylLyrics {...props} />
+  if (props.style === 'glitch') return <GlitchLyrics {...props} />
+  if (props.style === 'cinema') return <CinemaLyrics {...props} />
+  if (props.style === 'wave') return <WaveLyrics {...props} />
   return <ScrollingLyrics {...props} />
 }

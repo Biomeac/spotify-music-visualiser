@@ -1,83 +1,325 @@
-import { useMemo } from 'react'
-import type { Track } from '../../../shared'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import type { MessagesSettings, Track } from '../../../shared'
 import { activeLineIndex, wordProgress, type Line } from '../lib/lrc'
-import { toThread } from '../lib/threads'
+import { applyLiveTyping, toThread, type ScreenEffect, type TextItem, type VoiceItem } from '../lib/threads'
+import { hash } from '../lib/hash'
 
-const VISIBLE = 9
+const VISIBLE = 11
+const fmtClock = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M/i, '')
 const fmtTime = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+const fmtDur = (s: number) => `${Math.floor(s / 60)}:${String(Math.max(0, Math.round(s % 60))).padStart(2, '0')}`
 
-export default function MessagesView({ lines, t, track }: { lines: Line[]; t: number; track: Track | null }) {
-  const thread = useMemo(() => toThread(lines), [lines])
+/* ---------------- Little pieces of iOS chrome ---------------- */
+
+function StatusBar() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 15000)
+    return () => clearInterval(id)
+  }, [])
+  return (
+    <div className="ios-status">
+      <span className="clock">{fmtClock(now)}</span>
+      <span className="island" />
+      <span className="icons">
+        <i className="signal">
+          <b />
+          <b />
+          <b />
+          <b />
+        </i>
+        <i className="wifi" />
+        <i className="battery">
+          <b />
+        </i>
+      </span>
+    </div>
+  )
+}
+
+function Avatar({ name, color, art, size = 28 }: { name: string; color: string; art?: string | null; size?: number }) {
+  return (
+    <span className="ios-avatar" style={{ width: size, height: size, background: art ? undefined : `linear-gradient(${color}, color-mix(in srgb, ${color} 60%, #000))`, fontSize: size * 0.42 }}>
+      {art ? <img src={art} alt="" /> : name.trim()[0]?.toUpperCase()}
+    </span>
+  )
+}
+
+/* ---------------- Full-screen message effects ---------------- */
+
+const FX_GLYPHS: Record<ScreenEffect, string[]> = {
+  love: ['❤️', '💕', '💖', '💗'],
+  fire: ['🔥', '🔥', '✨'],
+  stars: ['✨', '⭐️', '🌟', '💫'],
+  rain: ['💧', '💧', '💦'],
+  confetti: [],
+  money: ['💸', '💵', '💰', '💎'],
+  balloons: ['🎈', '🎈', '🎈']
+}
+const CONFETTI = ['#ff375f', '#ffd60a', '#30d158', '#64d2ff', '#bf5af2', '#ff9f0a']
+
+function ScreenFx({ kind, seed }: { kind: ScreenEffect; seed: string }) {
+  const n = kind === 'confetti' ? 70 : kind === 'rain' ? 40 : 26
+  return (
+    <div className={`screen-fx fx-${kind}`}>
+      {Array.from({ length: n }, (_, i) => {
+        const r1 = hash(seed, i)
+        const r2 = hash(seed, i + 101)
+        const r3 = hash(seed, i + 202)
+        const style = {
+          '--x': `${r1 * 100}%`,
+          '--d': `${r2 * (kind === 'rain' ? 1.2 : 0.9)}s`,
+          '--s': 0.6 + r3 * 1.1,
+          '--dx': `${(r2 - 0.5) * 120}px`,
+          '--rot': `${(r3 - 0.5) * 720}deg`,
+          '--c': CONFETTI[i % CONFETTI.length]
+        } as CSSProperties
+        return kind === 'confetti' ? <i key={i} className="confetti" style={style} /> : (
+          <span key={i} style={style}>
+            {FX_GLYPHS[kind][i % FX_GLYPHS[kind].length]}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ---------------- Bubbles ---------------- */
+
+function Words({ line, t, ink }: { line: Line; t: number; ink: boolean }) {
+  return (
+    <>
+      {line.words.map((w, j) => {
+        const p = wordProgress(w, t)
+        return (
+          <span key={j} className={`mw ${p > 0 ? 'on' : ''} ${ink && p <= 0 ? 'inked' : ''}`}>
+            {w.text}
+            {j < line.words.length - 1 ? ' ' : ''}
+          </span>
+        )
+      })}
+    </>
+  )
+}
+
+function VoiceNote({ item, t }: { item: VoiceItem; t: number }) {
+  const dur = item.end - item.appearAt
+  const p = Math.max(0, Math.min(1, (t - item.appearAt) / dur))
+  const playing = p > 0 && p < 1
+  return (
+    <div className={`voice ${playing ? 'playing' : ''}`}>
+      <span className="vplay">{playing ? '❚❚' : '▶'}</span>
+      <span className="wave">
+        {Array.from({ length: 28 }, (_, i) => {
+          const hgt = 0.25 + 0.75 * Math.abs(Math.sin(i * 1.7 + hash(item.id, i) * 3))
+          return <i key={i} className={i / 28 < p ? 'done' : ''} style={{ '--h': hgt, '--i': i } as CSSProperties} />
+        })}
+      </span>
+      <span className="vdur">{fmtDur(playing ? dur * (1 - p) : dur)}</span>
+    </div>
+  )
+}
+
+/* ---------------- The thread ---------------- */
+
+export default function MessagesView({ lines, t, track, settings }: { lines: Line[]; t: number; track: Track | null; settings: MessagesSettings }) {
+  const artists = useMemo(() => (track?.artists ?? '').split(', ').filter(Boolean), [track?.artists])
+  const items = useMemo(() => applyLiveTyping(toThread(lines, artists), settings.liveTyping), [lines, artists, settings.liveTyping])
   const startedAt = useMemo(() => fmtTime(new Date()), [track?.id])
   const active = activeLineIndex(lines, t)
+  const group = artists.length > 1
 
-  // Messages already "sent": every thread message whose line has started.
-  const sentCount = thread.findIndex((m) => m.index > active)
-  const sent = thread.slice(0, sentCount === -1 ? thread.length : sentCount)
-  const next = sentCount === -1 ? null : thread[sentCount]
-  const last = sent[sent.length - 1]
-  // "Typing…" shows on the next sender's side shortly before their line arrives.
-  const typingLead = next ? Math.min(2.2, Math.max(0.9, next.line.text.length * 0.035)) : 0
-  const typing = next && t >= next.line.start - typingLead && (!last || t > last.line.singEnd - 0.1)
+  const shownAll = items.filter((it) => it.appearAt <= t)
+  const shown = shownAll.slice(-VISIBLE)
+  const pending = items.filter((it) => it.appearAt > t)
 
-  const shown = sent.slice(-VISIBLE)
-  const lastOut = [...sent].reverse().find((m) => m.side === 'out')
-  const readAfter = lastOut && sent.some((m) => m.side === 'in' && m.index > lastOut.index)
+  // Incoming "typing…" bubble just before their next message lands.
+  const nextIn = pending.find((it) => it.side === 'in')
+  const lastShown = shownAll[shownAll.length - 1]
+  const lastText = [...shownAll].reverse().find((it): it is TextItem => it.kind === 'text')
+  const lead = nextIn?.kind === 'text' ? Math.min(2.2, Math.max(0.8, nextIn.line.text.length * 0.035)) : 0.9
+  const typing =
+    nextIn &&
+    t >= nextIn.appearAt - lead &&
+    (!lastText || lastText.side === 'out' || t > lastText.line.singEnd - 0.15) &&
+    (!lastShown || lastShown.kind !== 'voice' || t > lastShown.end - 1)
 
-  const first = track?.artists.split(', ')[0] ?? 'Unknown'
+  // Your own line being typed into the text box right now.
+  const composing = settings.liveTyping
+    ? (pending.find((it): it is TextItem => it.kind === 'text' && it.side === 'out' && t >= it.typeFrom) ?? null)
+    : null
+  let typed = ''
+  if (composing)
+    composing.line.words.forEach((w, i) => {
+      const n = Math.ceil(wordProgress(w, t) * w.text.length)
+      if (n > 0) typed += (i ? ' ' : '') + w.text.slice(0, n)
+    })
+
+  // Effects: newest screen effect within 3.6s of arriving; slams shake the phone.
+  const fx = settings.effects
+    ? [...shownAll].reverse().find((it): it is TextItem => it.kind === 'text' && !!it.screen && t - it.appearAt < 3.6)
+    : undefined
+  const slam = settings.effects ? [...shownAll].reverse().find((it) => it.kind === 'text' && it.effect === 'slam' && t - it.appearAt < 0.7) : undefined
+
+  const lastOut = [...shownAll].reverse().find((it) => it.side === 'out')
+  const readAfter = lastOut && shownAll.some((it) => it.side === 'in' && it.appearAt > lastOut.appearAt)
+
+  // Smoothly slide the thread up when a new bubble arrives (FLIP).
+  const innerRef = useRef<HTMLDivElement>(null)
+  const prevH = useRef(0)
+  const countKey = `${shown.length}-${shown[shown.length - 1]?.id}-${typing ? 1 : 0}`
+  useLayoutEffect(() => {
+    const el = innerRef.current
+    if (!el) return
+    const h = el.offsetHeight
+    const delta = h - prevH.current
+    prevH.current = h
+    if (delta > 0 && delta < 400) {
+      el.style.transition = 'none'
+      el.style.transform = `translateY(${delta}px)`
+      void el.offsetHeight
+      el.style.transition = 'transform .38s cubic-bezier(.2,.9,.25,1)'
+      el.style.transform = 'translateY(0)'
+    }
+  }, [countKey])
+
+  // 3D tilt following the mouse.
+  const phoneRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!settings.tilt) return
+    const onMove = (e: MouseEvent) => {
+      const el = phoneRef.current
+      if (!el) return
+      const x = e.clientX / window.innerWidth - 0.5
+      const y = e.clientY / window.innerHeight - 0.5
+      el.style.setProperty('--ry', `${x * 10}deg`)
+      el.style.setProperty('--rx', `${-y * 8}deg`)
+    }
+    window.addEventListener('mousemove', onMove)
+    return () => window.removeEventListener('mousemove', onMove)
+  }, [settings.tilt])
+
+  const title = group ? artists.join(', ') : (artists[0] ?? 'Unknown')
+  const bubbleClass = `bub-${settings.bubble}`
 
   return (
-    <div className="lyrics style-messages">
-      <div className="phone">
-        <div className="contact">
-          <div className="avatar">{track?.artUrl ? <img src={track.artUrl} alt="" /> : first[0]}</div>
-          <div className="contact-name">
-            {first} <span>›</span>
-          </div>
-        </div>
-        <div className="thread">
-          <div className="stamp">
-            <b>iMessage</b>
-            <br />
-            Today {startedAt}
-          </div>
-          {shown.map((m, i) => {
-            const nextMsg = shown[i + 1]
-            const tail = nextMsg ? nextMsg.side !== m.side : !(typing && next?.side === m.side)
-            const groupStart = i === 0 || shown[i - 1].side !== m.side
-            const live = m.index === active
-            const reactAt = m.line.singEnd + 0.6
-            return (
-              <div key={m.index} className={`msg ${m.side} ${groupStart ? 'group-start' : ''}`}>
-                <div className={`bubble ${m.side} ${tail ? 'tail' : ''} ${live ? 'live' : ''}`}>
-                  {live
-                    ? m.line.words.map((w, j) => {
-                        const p = wordProgress(w, t)
-                        return (
-                          <span key={j} className={`mw ${p > 0 ? 'on' : ''}`}>
-                            {w.text}
-                            {j < m.line.words.length - 1 ? ' ' : ''}
-                          </span>
-                        )
-                      })
-                    : m.line.text}
-                  {m.reaction && t > reactAt && <span className={`tapback ${m.side}`}>{m.reaction}</span>}
+    <div className={`lyrics style-messages theme-${settings.theme} ${bubbleClass}`}>
+      <div className={`phone-wrap ${settings.tilt ? 'tilt' : ''}`} ref={phoneRef}>
+        <div className={`iphone ${slam ? 'shake' : ''}`} key={slam?.id ?? 'phone'}>
+          <div className="screen">
+            <StatusBar />
+            <div className="ios-header">
+              <span className="back">‹<b>{(hash(track?.id ?? 'x') * 40 + 3) | 0}</b></span>
+              <div className="who">
+                {group ? (
+                  <span className="stack">
+                    {artists.slice(0, 3).map((a, i) => (
+                      <Avatar key={a} name={a} color={['#ff9f0a', '#30d158', '#64d2ff'][i]} size={30} />
+                    ))}
+                  </span>
+                ) : (
+                  <Avatar name={title} color="#8e8e93" art={track?.artUrl} size={46} />
+                )}
+                <span className="who-name">
+                  {title} <em>›</em>
+                </span>
+              </div>
+              <span className="video" />
+            </div>
+
+            <div className="thread">
+              <div className="thread-inner" ref={innerRef}>
+                <div className="stamp">
+                  <b>iMessage</b>
+                  <br />
+                  Today {startedAt}
                 </div>
-                {m === lastOut && (
-                  <div className="receipt">{readAfter ? <>Read {startedAt}</> : 'Delivered'}</div>
+                {shown.map((it, i) => {
+                  const prev = shown[i - 1]
+                  const next = shown[i + 1]
+                  const sameAsPrev = prev && prev.side === it.side && prev.sender.name === it.sender.name
+                  const sameAsNext = next && next.side === it.side && next.sender.name === it.sender.name
+                  const typingAfter = !next && typing && nextIn?.side === it.side
+                  const tail = !sameAsNext && !typingAfter
+                  const showName = group && it.side === 'in' && !sameAsPrev
+                  const showAvatar = group && it.side === 'in' && tail
+
+                  let bubble
+                  if (it.kind === 'link')
+                    bubble = (
+                      <div className="link-card">
+                        {track?.artUrl ? <img src={track.artUrl} alt="" /> : <div className="noart" />}
+                        <div className="lc-meta">
+                          <b>{track?.name}</b>
+                          <span>Song · {track?.artists}</span>
+                          <small>open.spotify.com</small>
+                        </div>
+                      </div>
+                    )
+                  else if (it.kind === 'voice') bubble = <VoiceNote item={it} t={t} />
+                  else {
+                    const live = it.index === active && it.side === 'in'
+                    bubble = (
+                      <>
+                        {live || it.effect === 'ink' ? <Words line={it.line} t={t} ink={settings.effects && it.effect === 'ink'} /> : it.line.text}
+                        {it.reaction && t > it.line.singEnd + 0.6 && <span className={`tapback ${it.side}`}>{it.reaction}</span>}
+                      </>
+                    )
+                  }
+                  const fxClass = it.kind === 'text' && settings.effects ? `fx-${it.effect}` : ''
+                  return (
+                    <div key={it.id} className={`msg ${it.side} ${sameAsPrev ? '' : 'group-start'}`}>
+                      {showName && <div className="sender-name">{it.sender.name}</div>}
+                      <div className="msg-row">
+                        {group && it.side === 'in' && (
+                          <span className="avatar-slot">{showAvatar && <Avatar name={it.sender.name} color={it.sender.color} size={26} />}</span>
+                        )}
+                        <div
+                          className={`bubble ${it.side} ${tail ? 'tail' : ''} ${it.kind} ${fxClass} ${it.kind === 'text' && it.index === active ? 'live' : ''}`}
+                        >
+                          {bubble}
+                        </div>
+                      </div>
+                      {it === lastOut && <div className="receipt">{readAfter ? <>Read {startedAt}</> : 'Delivered'}</div>}
+                    </div>
+                  )
+                })}
+                {typing && nextIn && (
+                  <div className={`msg in ${lastShown?.side === 'in' && lastShown.sender.name === nextIn.sender.name ? '' : 'group-start'}`} key={`typing-${nextIn.id}`}>
+                    <div className="msg-row">
+                      {group && (
+                        <span className="avatar-slot">
+                          <Avatar name={nextIn.sender.name} color={nextIn.sender.color} size={26} />
+                        </span>
+                      )}
+                      <div className="bubble typing in tail">
+                        <i />
+                        <i />
+                        <i />
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
-            )
-          })}
-          {typing && next && (
-            <div className={`msg ${next.side}`} key={`typing-${next.index}`}>
-              <div className={`bubble typing ${next.side} tail`}>
-                <i />
-                <i />
-                <i />
+            </div>
+
+            <div className="composer">
+              <span className="plus">+</span>
+              <div className={`ios-field ${typed ? 'has-text' : ''}`}>
+                {typed ? (
+                  <>
+                    <span>{typed}</span>
+                    <span className="caret" />
+                  </>
+                ) : (
+                  <span className="ph">iMessage</span>
+                )}
+                <span className={`send ${typed ? 'ready' : ''}`}>{typed ? '↑' : '🎙'}</span>
               </div>
             </div>
-          )}
+            <div className="home-bar" />
+            {fx?.screen && <ScreenFx kind={fx.screen} seed={fx.id} key={fx.id} />}
+          </div>
         </div>
       </div>
     </div>

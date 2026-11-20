@@ -1,7 +1,7 @@
 import { app, safeStorage } from 'electron'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { DEFAULT_BACKGROUND, DEFAULT_TEXT, DEFAULT_UI, type Settings } from '../shared'
+import { DEFAULT_BACKGROUND, DEFAULT_MESSAGES, DEFAULT_TEXT, DEFAULT_UI, type Settings } from '../shared'
 
 const defaults: Settings = {
   clientId: '',
@@ -13,6 +13,7 @@ const defaults: Settings = {
   background: DEFAULT_BACKGROUND,
   text: DEFAULT_TEXT,
   ui: DEFAULT_UI,
+  messages: DEFAULT_MESSAGES,
   trackOffsets: {}
 }
 
@@ -32,7 +33,7 @@ export function getSettings(): Settings {
   if (cache) return cache
   try {
     const saved = JSON.parse(readFileSync(settingsPath(), 'utf8'))
-    cache = { ...defaults, ...saved, background: { ...DEFAULT_BACKGROUND, ...saved.background }, text: { ...DEFAULT_TEXT, ...saved.text }, ui: { ...DEFAULT_UI, ...saved.ui } }
+    cache = { ...defaults, ...saved, background: { ...DEFAULT_BACKGROUND, ...saved.background }, text: { ...DEFAULT_TEXT, ...saved.text }, ui: { ...DEFAULT_UI, ...saved.ui }, messages: { ...DEFAULT_MESSAGES, ...saved.messages } }
   } catch {
     cache = { ...defaults }
   }

@@ -5,12 +5,13 @@ A Mac app that shows beautiful, time-synced lyrics for whatever you're playing o
 ## Features
 - **Search any song** (⌘K) and play it on your Spotify app, Mac or phone. Spotify Premium is needed for playback control.
 - **Follows whatever you play.** Changing a song in Spotify updates the lyrics.
-- **8 lyric styles:** Glow, Sweep, Focus, Messages (a realistic iMessage-style conversation with typing dots, reactions and read receipts), Kinetic, Neon, Typewriter and Bounce.
-- **Live backgrounds:** Aurora, Particles, Waves, Album art or Solid. Colours come from the album or your own picks and presets, with speed, brightness, blur, film grain, and an option to pulse with each lyric line.
+- **13 lyric styles:** Glow, Sweep, Focus, Messages, Kinetic, Neon, Typewriter, Bounce, Poster (editorial type), Vinyl (lyrics curved around a spinning record), Glitch, Cinema (letterboxed subtitles) and Wave.
+- **Messages mode:** a full iPhone conversation. The song is shared as a link, featured artists join as a group chat, lines arrive with typing dots, you "type" your replies live in the composer, long instrumental breaks become voice notes, and keywords trigger iMessage effects (hearts, fireworks, confetti, rain, balloons, slam, loud, gentle, invisible ink). Light/dark, bubble colour and 3D tilt are in Customise.
+- **12 live backgrounds:** Fluid (Apple Music-style mesh gradient), Lava lamp, Dither, Synthwave, Hyperspace, Bokeh, Halftone, Aurora, Particles, Waves, Album art or Solid. Most run as GPU shaders. Colours come from the album or your own picks and presets, with speed, brightness, blur, film grain, and an option to pulse with each lyric line.
 - **Floating overlay** that stays on top of full-screen apps and every Space. It can be locked so clicks pass through. The ♪ menu bar icon toggles it.
 - Click any line to jump there. Use `[` and `]` to nudge timing for the current song; it is remembered per song.
 - **Customise** fonts, weight, alignment, sung-word colour, glow, dimming, blur, animation speed, ALL CAPS, background, overlay size and backdrop, and auto-hiding controls.
-- Shortcuts: Space play/pause, ←/→ seek 5s, N/P next/previous, 1–8 styles, ⌘K search, O overlay, F full screen, S customise.
+- Shortcuts: Space play/pause, ←/→ seek 5s, N/P next/previous, 1–9 styles, C cycle styles, [ / ] nudge timing, ⌘K search, O overlay, F full screen, S customise.
 
 ## How it connects
 - **Spotify app on this Mac (automatic, no sign-in).** Like DJ apps, it reads the Spotify desktop app directly, so lyrics follow along with no setup, no rate limits and millisecond-accurate timing. macOS asks once for permission to control Spotify. Play, pause, skip, seek and playing a searched song all go through the app, and playing a specific song works without Premium.
@@ -46,5 +47,4 @@ The output goes to `dist/`. The build is unsigned, so on first launch right-clic
 
 ## Roadmap
 - Lock-screen lyrics (stretch goal)
-- More styles and a font picker
 - Apple Music support

@@ -27,9 +27,34 @@ export interface LyricsResult {
   source: string
 }
 
-export type LyricStyle = 'glow' | 'karaoke' | 'focus' | 'messages' | 'kinetic' | 'neon' | 'typewriter' | 'bounce'
+export type LyricStyle =
+  | 'glow'
+  | 'karaoke'
+  | 'focus'
+  | 'messages'
+  | 'kinetic'
+  | 'neon'
+  | 'typewriter'
+  | 'bounce'
+  | 'poster'
+  | 'vinyl'
+  | 'glitch'
+  | 'cinema'
+  | 'wave'
 
-export type BackgroundKind = 'aurora' | 'particles' | 'waves' | 'album' | 'solid'
+export type BackgroundKind =
+  | 'fluid'
+  | 'lava'
+  | 'dither'
+  | 'synthwave'
+  | 'warp'
+  | 'bokeh'
+  | 'halftone'
+  | 'aurora'
+  | 'particles'
+  | 'waves'
+  | 'album'
+  | 'solid'
 
 export interface BackgroundSettings {
   kind: BackgroundKind
@@ -48,7 +73,7 @@ export interface BackgroundSettings {
 }
 
 export const DEFAULT_BACKGROUND: BackgroundSettings = {
-  kind: 'aurora',
+  kind: 'fluid',
   colorSource: 'album',
   colors: ['#ff3d7f', '#7a2cff', '#00c2ff'],
   speed: 1,
@@ -68,6 +93,7 @@ export interface Settings {
   background: BackgroundSettings
   text: TextSettings
   ui: UiSettings
+  messages: MessagesSettings
   /** Extra timing offset remembered per Spotify track id, in ms. */
   trackOffsets: Record<string, number>
 }
@@ -123,6 +149,19 @@ export interface UiSettings {
 }
 
 export const DEFAULT_UI: UiSettings = { autoHide: true, overlayOpacity: 0, overlayScale: 1, overlayShowNext: true }
+
+export interface MessagesSettings {
+  theme: 'dark' | 'light'
+  bubble: 'blue' | 'green' | 'accent'
+  /** Full-screen effects (hearts, confetti, fire…) and bubble effects (slam, loud, invisible ink). */
+  effects: boolean
+  /** Your lines are typed out live in the text box, then sent. */
+  liveTyping: boolean
+  /** Tilt the phone in 3D as the mouse moves. */
+  tilt: boolean
+}
+
+export const DEFAULT_MESSAGES: MessagesSettings = { theme: 'dark', bubble: 'blue', effects: true, liveTyping: true, tilt: true }
 
 export const REDIRECT_PORT = 43821
 export const REDIRECT_URI = `http://127.0.0.1:${REDIRECT_PORT}/callback`

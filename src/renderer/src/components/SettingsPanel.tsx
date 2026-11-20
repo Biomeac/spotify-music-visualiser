@@ -8,6 +8,7 @@ import {
   type BackgroundSettings,
   type FontChoice,
   type LyricStyle,
+  type MessagesSettings,
   type Settings,
   type TextSettings,
   type Track,
@@ -22,10 +23,22 @@ const STYLES: { id: LyricStyle; name: string; desc: string }[] = [
   { id: 'kinetic', name: 'Kinetic', desc: 'Words fly in from everywhere' },
   { id: 'neon', name: 'Neon', desc: 'Glass tubes flicker on' },
   { id: 'typewriter', name: 'Typewriter', desc: 'Typed out as it is sung' },
-  { id: 'bounce', name: 'Bounce', desc: 'A ball hops word to word' }
+  { id: 'bounce', name: 'Bounce', desc: 'A ball hops word to word' },
+  { id: 'poster', name: 'Poster', desc: 'Swiss editorial, a word per row' },
+  { id: 'vinyl', name: 'Vinyl', desc: 'Lyrics wrap a spinning record' },
+  { id: 'glitch', name: 'Glitch', desc: 'RGB-split, corrupted type' },
+  { id: 'cinema', name: 'Cinema', desc: 'Letterboxed film subtitles' },
+  { id: 'wave', name: 'Wave', desc: 'Letters ride a travelling wave' }
 ]
 
 const BACKGROUNDS: { id: BackgroundKind; name: string }[] = [
+  { id: 'fluid', name: 'Fluid' },
+  { id: 'lava', name: 'Lava lamp' },
+  { id: 'dither', name: 'Dither' },
+  { id: 'synthwave', name: 'Synthwave' },
+  { id: 'warp', name: 'Hyperspace' },
+  { id: 'bokeh', name: 'Bokeh' },
+  { id: 'halftone', name: 'Halftone' },
   { id: 'aurora', name: 'Aurora' },
   { id: 'particles', name: 'Particles' },
   { id: 'waves', name: 'Waves' },
@@ -103,6 +116,8 @@ export default function SettingsPanel({ settings, auth, track, onClose }: { sett
   const setTx = (patch: Partial<TextSettings>) => set({ text: { ...tx, ...patch } })
   const ui = settings.ui
   const setUi = (patch: Partial<UiSettings>) => set({ ui: { ...ui, ...patch } })
+  const msg = settings.messages
+  const setMsg = (patch: Partial<MessagesSettings>) => set({ messages: { ...msg, ...patch } })
   const songOffset = track ? (settings.trackOffsets[track.id] ?? 0) : 0
   const setSongOffset = (ms: number) => track && set({ trackOffsets: { ...settings.trackOffsets, [track.id]: ms } })
   return (
@@ -118,7 +133,7 @@ export default function SettingsPanel({ settings, auth, track, onClose }: { sett
 
         {tab === 'style' && (
           <>
-            <div className="eyebrow">Lyric style · keys 1–8</div>
+            <div className="eyebrow">Lyric style · keys 1–9, C to cycle</div>
             <div className="styles">
               {STYLES.map((s, i) => (
                 <button key={s.id} className={`style-card ${settings.style === s.id ? 'on' : ''}`} onClick={() => set({ style: s.id })}>
@@ -126,12 +141,43 @@ export default function SettingsPanel({ settings, auth, track, onClose }: { sett
                     <span className="a">Sing</span> <span className="b">it</span> <span className="c">back</span>
                   </div>
                   <b>
-                    {s.name} <kbd>{i + 1}</kbd>
+                    {s.name} {i < 9 && <kbd>{i + 1}</kbd>}
                   </b>
                   <small>{s.desc}</small>
                 </button>
               ))}
             </div>
+            {settings.style === 'messages' && (
+              <>
+                <div className="eyebrow">Messages</div>
+                <Seg
+                  value={msg.theme}
+                  options={[
+                    { id: 'dark', name: 'Dark mode' },
+                    { id: 'light', name: 'Light mode' }
+                  ]}
+                  onChange={(theme) => setMsg({ theme })}
+                />
+                <Seg
+                  value={msg.bubble}
+                  options={[
+                    { id: 'blue', name: 'iMessage blue' },
+                    { id: 'green', name: 'SMS green' },
+                    { id: 'accent', name: 'Album colour' }
+                  ]}
+                  onChange={(bubble) => setMsg({ bubble })}
+                />
+                <Toggle checked={msg.effects} onChange={(v) => setMsg({ effects: v })}>
+                  Effects: slam choruses, invisible ink, hearts, fire, confetti…
+                </Toggle>
+                <Toggle checked={msg.liveTyping} onChange={(v) => setMsg({ liveTyping: v })}>
+                  Type your lines live in the text box, then send
+                </Toggle>
+                <Toggle checked={msg.tilt} onChange={(v) => setMsg({ tilt: v })}>
+                  Tilt the phone with the mouse
+                </Toggle>
+              </>
+            )}
           </>
         )}
 
@@ -312,7 +358,7 @@ export default function SettingsPanel({ settings, auth, track, onClose }: { sett
               <span><kbd>←</kbd> <kbd>→</kbd> Back / forward 5s</span>
               <span><kbd>N</kbd> <kbd>P</kbd> Next / previous</span>
               <span><kbd>[</kbd> <kbd>]</kbd> Nudge timing</span>
-              <span><kbd>1</kbd>–<kbd>8</kbd> Switch style</span>
+              <span><kbd>1</kbd>–<kbd>9</kbd> <kbd>C</kbd> Switch style</span>
               <span><kbd>⌘K</kbd> Search</span>
               <span><kbd>O</kbd> Overlay</span>
               <span><kbd>F</kbd> Full screen</span>
