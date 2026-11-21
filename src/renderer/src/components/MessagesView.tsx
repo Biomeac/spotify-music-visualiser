@@ -1,7 +1,7 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { MessagesSettings, Track } from '../../../shared'
 import { activeLineIndex, wordProgress, type Line } from '../lib/lrc'
-import { applyLiveTyping, toThread, type ScreenEffect, type TextItem, type VoiceItem } from '../lib/threads'
+import { applyLiveTyping, toThread, type ScreenEffect, type TextItem, type ThreadItem, type VoiceItem } from '../lib/threads'
 import { hash } from '../lib/hash'
 import { ArrowUp, ChevronLeft, ChevronRight, Delete, Mic, Pause, Play, Plus, Smile, Video, ArrowBigUp } from 'lucide-react'
 
@@ -58,7 +58,7 @@ function Tail({ side }: { side: 'in' | 'out' }) {
 const KEY_ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm']
 
 /** The iOS keyboard, with the key being "pressed" popping up as your line is typed. */
-function Keyboard({ pressed, up }: { pressed: string; up: boolean }) {
+const Keyboard = memo(function Keyboard({ pressed, up }: { pressed: string; up: boolean }) {
   const k = pressed.toLowerCase()
   return (
     <div className={`ios-kb ${up ? 'up' : ''}`}>
@@ -73,7 +73,7 @@ function Keyboard({ pressed, up }: { pressed: string; up: boolean }) {
             {row.split('').map((c) => (
               <span key={c} className={`key ${k === c ? 'pressed' : ''}`}>
                 {c}
-                {k === c && <b className="pop">{c}</b>}
+                {k === c && <b className="pop"><span>{c}</span></b>}
               </span>
             ))}
             {r === 2 && (
@@ -95,7 +95,7 @@ function Keyboard({ pressed, up }: { pressed: string; up: boolean }) {
       </div>
     </div>
   )
-}
+})
 
 /** Keeps the phone at true iPhone proportions and scales it to fit the window. */
 function usePhoneScale() {
@@ -136,7 +136,7 @@ const FX_GLYPHS: Record<ScreenEffect, string[]> = {
 }
 const CONFETTI = ['#ff375f', '#ffd60a', '#30d158', '#64d2ff', '#bf5af2', '#ff9f0a']
 
-function ScreenFx({ kind, seed }: { kind: ScreenEffect; seed: string }) {
+const ScreenFx = memo(function ScreenFx({ kind, seed }: { kind: ScreenEffect; seed: string }) {
   const n = kind === 'confetti' ? 70 : kind === 'rain' ? 40 : 26
   return (
     <div className={`screen-fx fx-${kind}`}>
@@ -160,7 +160,7 @@ function ScreenFx({ kind, seed }: { kind: ScreenEffect; seed: string }) {
       })}
     </div>
   )
-}
+})
 
 /* ---------------- Bubbles ---------------- */
 
@@ -198,6 +198,63 @@ function VoiceNote({ item, t }: { item: VoiceItem; t: number }) {
   )
 }
 
+interface MessageProps {
+  it: ThreadItem
+  clock: number
+  live: boolean
+  sameAsPrev: boolean
+  tail: boolean
+  group: boolean
+  showName: boolean
+  showAvatar: boolean
+  showReaction: boolean
+  settled: boolean
+  effects: boolean
+  receipt: string | null
+  art: string | null
+  songName: string
+  songArtists: string
+}
+
+const Message = memo(function Message({ it, clock, live, sameAsPrev, tail, group, showName, showAvatar, showReaction, settled, effects, receipt, art, songName, songArtists }: MessageProps) {
+  let bubble
+  if (it.kind === 'link')
+    bubble = (
+      <div className="link-card">
+        {art ? <img src={art} alt="" /> : <div className="noart" />}
+        <div className="lc-meta">
+          <b>{songName}</b>
+          <span>Song · {songArtists}</span>
+          <small>open.spotify.com</small>
+        </div>
+      </div>
+    )
+  else if (it.kind === 'voice') bubble = <VoiceNote item={it} t={clock} />
+  else {
+    const ink = effects && it.effect === 'ink'
+    bubble = (
+      <>
+        {(live && it.side === 'in') || ink ? <Words line={it.line} t={clock || Infinity} ink={ink} /> : it.line.text}
+        {showReaction && <span className={`tapback ${it.side}`}>{it.reaction}</span>}
+      </>
+    )
+  }
+  const fxClass = it.kind === 'text' && effects ? `fx-${it.effect}` : ''
+  return (
+    <div data-id={it.id} className={`msg ${it.side} ${sameAsPrev ? '' : 'group-start'}`}>
+      {showName && <div className="sender-name">{it.sender.name}</div>}
+      <div className="msg-row">
+        {group && it.side === 'in' && <span className="avatar-slot">{showAvatar && <Avatar name={it.sender.name} color={it.sender.color} size={26} />}</span>}
+        <div className={`bubble ${it.side} ${tail ? 'tail' : ''} ${it.kind} ${fxClass} ${live ? 'live' : ''} ${settled ? 'settled' : ''}`}>
+          {bubble}
+          {tail && <Tail side={it.side} />}
+        </div>
+      </div>
+      {receipt && <div className="receipt">{receipt}</div>}
+    </div>
+  )
+})
+
 /* ---------------- The thread ---------------- */
 
 export default function MessagesView({ lines, t, track, settings }: { lines: Line[]; t: number; track: Track | null; settings: MessagesSettings }) {
@@ -206,6 +263,15 @@ export default function MessagesView({ lines, t, track, settings }: { lines: Lin
   const startedAt = useMemo(() => fmtTime(new Date()), [track?.id])
   const active = activeLineIndex(lines, t)
   const group = artists.length > 1
+  // Messages already in the chat when it opens (or after a seek) appear in place, without each one
+  // replaying its arrival animation at once.
+  const settledBefore = useRef({ track: '', t: -1, last: t })
+  const sb = settledBefore.current
+  if (sb.track !== (track?.id ?? '') || Math.abs(t - sb.last) > 1.5) {
+    sb.track = track?.id ?? ''
+    sb.t = t
+  }
+  sb.last = t
 
   const shownAll = items.filter((it) => it.appearAt <= t)
   const shown = shownAll.slice(-VISIBLE)
@@ -242,24 +308,50 @@ export default function MessagesView({ lines, t, track, settings }: { lines: Lin
   const lastOut = [...shownAll].reverse().find((it) => it.side === 'out')
   const readAfter = lastOut && shownAll.some((it) => it.side === 'in' && it.appearAt > lastOut.appearAt)
 
-  // Smoothly slide the thread up when a new bubble arrives (FLIP).
+  // Smoothly slide the thread up when a bubble arrives (FLIP). The newest bubble that was already on
+  // screen is the anchor: we measure how far it moved and animate that distance away. Animations are
+  // additive, so a new message arriving mid-slide continues smoothly instead of jumping.
   const innerRef = useRef<HTMLDivElement>(null)
-  const prevH = useRef(0)
+  const anchor = useRef<{ id: string; fromBottom: number } | null>(null)
   const countKey = `${shown.length}-${shown[shown.length - 1]?.id}-${typing ? 1 : 0}`
   useLayoutEffect(() => {
-    const el = innerRef.current
-    if (!el) return
-    const h = el.offsetHeight
-    const delta = h - prevH.current
-    prevH.current = h
-    if (delta > 0 && delta < 400) {
-      el.style.transition = 'none'
-      el.style.transform = `translateY(${delta}px)`
-      void el.offsetHeight
-      el.style.transition = 'transform .38s cubic-bezier(.2,.9,.25,1)'
-      el.style.transform = 'translateY(0)'
+    const inner = innerRef.current
+    if (!inner) return
+    const h = inner.offsetHeight
+    const prev = anchor.current
+    if (prev) {
+      const el = inner.querySelector<HTMLElement>(`[data-id="${CSS.escape(prev.id)}"]`)
+      if (el) {
+        const delta = h - el.offsetTop - prev.fromBottom
+        if (delta > 0.5 && delta < 600)
+          inner.animate([{ transform: `translateY(${delta}px)` }, { transform: 'translateY(0)' }], {
+            duration: 520,
+            easing: 'cubic-bezier(.2,.95,.25,1)',
+            composite: 'add'
+          })
+      }
     }
+    const last = shown[shown.length - 1]
+    const lastEl = last && inner.querySelector<HTMLElement>(`[data-id="${CSS.escape(last.id)}"]`)
+    anchor.current = last && lastEl ? { id: last.id, fromBottom: h - lastEl.offsetTop } : null
   }, [countKey])
+
+  // A slam shakes the phone once, without rebuilding it.
+  const shakeRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!slam) return
+    shakeRef.current?.animate(
+      [
+        { transform: 'translate(0,0) rotate(0)' },
+        { transform: 'translate(-6px,2px) rotate(-.6deg)' },
+        { transform: 'translate(6px,-1px) rotate(.6deg)' },
+        { transform: 'translate(-4px,1px) rotate(-.4deg)' },
+        { transform: 'translate(3px,0) rotate(.2deg)' },
+        { transform: 'translate(0,0) rotate(0)' }
+      ],
+      { duration: 500, easing: 'cubic-bezier(.36,.07,.19,.97)' }
+    )
+  }, [slam?.id])
 
   // 3D tilt following the mouse.
   const phoneRef = useRef<HTMLDivElement>(null)
@@ -294,7 +386,7 @@ export default function MessagesView({ lines, t, track, settings }: { lines: Lin
   return (
     <div className={`lyrics style-messages theme-${settings.theme} ${bubbleClass}`} ref={stageRef}>
       <div className={`phone-wrap ${settings.tilt ? 'tilt' : ''}`} ref={phoneRef} style={{ '--s': scale } as CSSProperties}>
-        <div className={`iphone ${slam ? 'shake' : ''}`} key={slam?.id ?? 'phone'}>
+        <div className="iphone" ref={shakeRef}>
           <i className="hw action" />
           <i className="hw vol-up" />
           <i className="hw vol-down" />
@@ -337,52 +429,34 @@ export default function MessagesView({ lines, t, track, settings }: { lines: Lin
                 {shown.map((it, i) => {
                   const prev = shown[i - 1]
                   const next = shown[i + 1]
-                  const sameAsPrev = prev && prev.side === it.side && prev.sender.name === it.sender.name
-                  const sameAsNext = next && next.side === it.side && next.sender.name === it.sender.name
-                  const typingAfter = !next && typing && nextIn?.side === it.side
+                  const sameAsPrev = !!prev && prev.side === it.side && prev.sender.name === it.sender.name
+                  const sameAsNext = !!next && next.side === it.side && next.sender.name === it.sender.name
+                  const typingAfter = !next && !!typing && nextIn?.side === it.side
                   const tail = !sameAsNext && !typingAfter && it.kind !== 'link'
-                  const showName = group && it.side === 'in' && !sameAsPrev
-                  const showAvatar = group && it.side === 'in' && !sameAsNext && !typingAfter
-
-                  let bubble
-                  if (it.kind === 'link')
-                    bubble = (
-                      <div className="link-card">
-                        {track?.artUrl ? <img src={track.artUrl} alt="" /> : <div className="noart" />}
-                        <div className="lc-meta">
-                          <b>{track?.name}</b>
-                          <span>Song · {track?.artists}</span>
-                          <small>open.spotify.com</small>
-                        </div>
-                      </div>
-                    )
-                  else if (it.kind === 'voice') bubble = <VoiceNote item={it} t={t} />
-                  else {
-                    const live = it.index === active && it.side === 'in'
-                    bubble = (
-                      <>
-                        {live || it.effect === 'ink' ? <Words line={it.line} t={t} ink={settings.effects && it.effect === 'ink'} /> : it.line.text}
-                        {it.reaction && t > it.line.singEnd + 0.6 && <span className={`tapback ${it.side}`}>{it.reaction}</span>}
-                      </>
-                    )
-                  }
-                  const fxClass = it.kind === 'text' && settings.effects ? `fx-${it.effect}` : ''
+                  // Only bubbles that are animating right now get the running clock, so the rest
+                  // don't re-render 60 times a second.
+                  let clock = 0
+                  if (it.kind === 'voice') clock = t < it.end + 0.5 ? t : 1e9
+                  if (it.kind === 'text' && (it.index === active || (it.effect === 'ink' && t < it.line.singEnd + 0.3))) clock = t
                   return (
-                    <div key={it.id} className={`msg ${it.side} ${sameAsPrev ? '' : 'group-start'}`}>
-                      {showName && <div className="sender-name">{it.sender.name}</div>}
-                      <div className="msg-row">
-                        {group && it.side === 'in' && (
-                          <span className="avatar-slot">{showAvatar && <Avatar name={it.sender.name} color={it.sender.color} size={26} />}</span>
-                        )}
-                        <div
-                          className={`bubble ${it.side} ${tail ? 'tail' : ''} ${it.kind} ${fxClass} ${it.kind === 'text' && it.index === active ? 'live' : ''}`}
-                        >
-                          {bubble}
-                          {tail && <Tail side={it.side} />}
-                        </div>
-                      </div>
-                      {it === lastOut && <div className="receipt">{readAfter ? <>Read {startedAt}</> : 'Delivered'}</div>}
-                    </div>
+                    <Message
+                      key={it.id}
+                      it={it}
+                      clock={clock}
+                      live={it.kind === 'text' && it.index === active}
+                      sameAsPrev={sameAsPrev}
+                      tail={tail}
+                      group={group}
+                      showName={group && it.side === 'in' && !sameAsPrev}
+                      showAvatar={group && it.side === 'in' && !sameAsNext && !typingAfter}
+                      showReaction={it.kind === 'text' && !!it.reaction && t > it.line.singEnd + 0.6}
+                      settled={it.appearAt < sb.t - 0.2}
+                      effects={settings.effects}
+                      receipt={it === lastOut ? (readAfter ? `Read ${startedAt}` : 'Delivered') : null}
+                      art={track?.artUrl ?? null}
+                      songName={track?.name ?? ''}
+                      songArtists={track?.artists ?? ''}
+                    />
                   )
                 })}
                 {typing && nextIn && (
@@ -412,8 +486,13 @@ export default function MessagesView({ lines, t, track, settings }: { lines: Lin
               <div className={`ios-field ${typed ? 'has-text' : ''}`}>
                 {typed ? (
                   <>
-                    <span>{typed}</span>
-                    <span className="caret" />
+                    {/* One line that scrolls with the typing, like iOS, so the box never jumps in height. */}
+                    <span className="typed">
+                      <span>
+                        {typed}
+                        <span className="caret" />
+                      </span>
+                    </span>
                   </>
                 ) : (
                   <span className="ph">iMessage</span>
