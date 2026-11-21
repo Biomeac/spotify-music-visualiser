@@ -1,0 +1,58 @@
+{
+  "name": "lyrics-visualiser",
+  "productName": "Lyrics Visualiser",
+  "version": "0.1.0",
+  "description": "Mac menu bar app that visualises synced lyrics for whatever is playing on Spotify.",
+  "main": "./out/main/index.js",
+  "private": true,
+  "scripts": {
+    "postinstall": "install-electron",
+    "predev": "install-electron",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test --experimental-strip-types src/renderer/src/lib/*.test.ts",
+    "dist:mac": "electron-vite build && electron-builder --mac",
+    "app": "node scripts/app.mjs"
+  },
+  "build": {
+    "appId": "xyz.lyricsvisualiser.app",
+    "productName": "Lyrics Visualiser",
+    "files": [
+      "out/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "extendInfo": {
+        "LSUIElement": false,
+        "NSAppleEventsUsageDescription": "Lyrics Visualiser follows the song playing in the Spotify app so lyrics stay in sync.",
+        "NSAudioCaptureUsageDescription": "Lyrics Visualiser listens to the music playing so backgrounds can move with the beat. Audio is analysed live on this Mac and never recorded or sent anywhere."
+      }
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "^6.0.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "typescript": "^5.9.0",
+    "vite": "^8.3.8"
+  },
+  "dependencies": {
+    "lucide-react": "^1.77.0"
+  }
+}
