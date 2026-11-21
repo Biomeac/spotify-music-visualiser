@@ -65,23 +65,34 @@ function ScrollingLyrics({ lines, t, style, onSeek }: Props) {
 
   return (
     <div className={`lyrics scroll style-${style}`}>
-      <div className="lyrics-list" ref={listRef} style={{ transform: `translateY(${offset}px)` }}>
+      <div className="lyrics-list" ref={listRef}>
         {lines.map((line, i) => {
+          // Lines move one after another, like a wave rolling down the list.
+          const rel = i - Math.max(0, active)
+          const lw = { transform: `translateY(${offset}px)`, transitionDelay: `${rel >= -1 ? Math.min(8, rel + 1) * 38 : 0}ms` }
+          let inner
           if (i === active && line.text)
-            return (
-              <div key={i} className="line active">
+            inner = (
+              <div className="line active">
                 <LineWords line={line} t={t} />
               </div>
             )
-          if (i === active && !line.text)
-            return (
-              <div key={i} className="line active">
+          else if (i === active && !line.text)
+            inner = (
+              <div className="line active">
                 <Breath from={line.start} to={line.end} t={t} />
               </div>
             )
-          const dist = Math.abs(i - active)
-          const state = i < active ? `past d${Math.min(dist, 4)}` : `future d${Math.min(dist, 4)}`
-          return <StaticLine key={i} text={line.text} state={state} start={line.start} onSeek={onSeek} />
+          else {
+            const dist = Math.abs(i - active)
+            const state = i < active ? `past d${Math.min(dist, 4)}` : `future d${Math.min(dist, 4)}`
+            inner = <StaticLine text={line.text} state={state} start={line.start} onSeek={onSeek} />
+          }
+          return (
+            <div key={i} className="lw" style={lw}>
+              {inner}
+            </div>
+          )
         })}
       </div>
     </div>
