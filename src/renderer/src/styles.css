@@ -293,9 +293,11 @@ input[type=range] { width: 100%; accent-color: #fff; }
 .send.ready { background: var(--out); color: #fff; animation: pop .2s cubic-bezier(.2,1.6,.4,1); }
 
 /* Keyboard */
-.ios-kb { flex: none; height: 0; overflow: hidden; transition: height .38s cubic-bezier(.2,.9,.25,1); background: var(--kb-bg); backdrop-filter: blur(30px); position: relative; z-index: 2; }
-.ios-kb.up { height: 291px; }
-.kb-inner { height: 291px; padding: 8px 3px 0; display: flex; flex-direction: column; gap: 11px; }
+.kb-space { flex: none; height: 30px; transition: height .42s cubic-bezier(.32,.72,0,1); }
+.kb-space.up { height: 291px; }
+.ios-kb { position: absolute; left: 0; right: 0; bottom: 0; height: 291px; z-index: 4; background: var(--kb-bg); backdrop-filter: blur(30px) saturate(1.6); transform: translateY(100%); transition: transform .42s cubic-bezier(.32,.72,0,1); will-change: transform; }
+.ios-kb.up { transform: none; }
+.kb-inner { height: 291px; padding: 8px 3px 0; border-top: .5px solid var(--hair); display: flex; flex-direction: column; gap: 11px; }
 .kb-row { display: flex; justify-content: center; gap: 6px; padding: 0 3px; }
 .kb-row.r1 { padding: 0 22px; }
 .key { position: relative; flex: 1; max-width: 34px; height: 43px; border-radius: 5px; background: var(--key); color: var(--key-fg); box-shadow: 0 1px 0 var(--key-shadow); display: grid; place-items: center; font-size: 23px; font-weight: 300; letter-spacing: 0; }
@@ -308,7 +310,6 @@ input[type=range] { width: 100%; accent-color: #fff; }
   clip-path: polygon(0 0, 100% 0, 100% 52%, 78% 62%, 78% 100%, 22% 100%, 22% 62%, 0 52%); }
 .kb-bottom { display: flex; justify-content: space-between; padding: 6px 22px 0; color: var(--sub); }
 .home-bar { position: absolute; bottom: 8px; left: 50%; width: 139px; height: 5px; margin-left: -69.5px; border-radius: 3px; background: var(--in-fg); z-index: 8; }
-.safe { flex: none; height: 0; transition: height .38s cubic-bezier(.2,.9,.25,1); background: var(--page); } .safe.on { height: 30px; }
 
 /* Full-screen effects */
 .screen-fx { position: absolute; inset: 0; pointer-events: none; z-index: 5; overflow: hidden; }
@@ -524,3 +525,16 @@ kbd { display: inline-block; min-width: 18px; padding: 1px 5px; border-radius: 5
 /* polish */
 .msg-row .bubble { flex: 0 0 auto; }
 .vdur { flex: none; font-size: 12px; font-variant-numeric: tabular-nums; opacity: .8; }
+
+/* React to the music */
+.music-card { display: grid; grid-template-columns: 38px 1fr auto; gap: 12px; align-items: center; padding: 12px; margin-bottom: 18px; border-radius: 14px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); }
+.music-card.live { border-color: color-mix(in srgb, var(--accent) 55%, transparent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.mc-icon { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: rgba(255,255,255,.08); }
+.music-card.live .mc-icon { background: var(--accent); color: #000; animation: breathe 1.2s ease-in-out infinite; }
+.mc-text { display: flex; flex-direction: column; gap: 2px; } .mc-text b { font-size: 14px; } .mc-text small { font-size: 12px; opacity: .65; line-height: 1.35; }
+.chip.on { background: #fff; color: #000; }
+.sw-pulse { background: radial-gradient(circle, #ff3d8b 0 5px, transparent 7px), radial-gradient(circle, transparent 0 11px, #7a2cffaa 12px, transparent 14px), radial-gradient(circle, transparent 0 20px, #13b5ff77 21px, transparent 23px), #05000a; }
+.sw-spectrum { background: radial-gradient(circle, #000 0 9px, transparent 10px), repeating-conic-gradient(#ff3d8b 0 4deg, transparent 4deg 10deg), #05000a; -webkit-mask: radial-gradient(circle, #000 0 22px, transparent 24px); }
+.sw-nebula { background: radial-gradient(circle at 35% 45%, #7a2cffaa, transparent 45%), radial-gradient(circle at 65% 60%, #ff3d8b88, transparent 50%), radial-gradient(circle at 20% 20%, #fff 0 .8px, transparent 1px), radial-gradient(circle at 80% 30%, #fff 0 .8px, transparent 1px), #04000c; }
+.sw-tunnel { background: repeating-radial-gradient(circle, #7a2cff 0 1.5px, transparent 2px 7px), radial-gradient(circle, #13b5ff 0 3px, #000 18px); }
+.sw-skyline { background: linear-gradient(#ff3d8b, #13b5ff) 10% 70% / 10% 40% no-repeat, linear-gradient(#ff3d8b, #13b5ff) 30% 70% / 10% 60% no-repeat, linear-gradient(#ff3d8b, #13b5ff) 50% 70% / 10% 75% no-repeat, linear-gradient(#ff3d8b, #13b5ff) 70% 70% / 10% 55% no-repeat, linear-gradient(#ff3d8b, #13b5ff) 90% 70% / 10% 35% no-repeat, #000; }

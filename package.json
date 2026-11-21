@@ -12,7 +12,8 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "node --test --experimental-strip-types src/renderer/src/lib/*.test.ts",
-    "dist:mac": "electron-vite build && electron-builder --mac"
+    "dist:mac": "electron-vite build && electron-builder --mac",
+    "app": "node scripts/app.mjs"
   },
   "build": {
     "appId": "xyz.lyricsvisualiser.app",
@@ -32,7 +33,9 @@
         }
       ],
       "extendInfo": {
-        "LSUIElement": false
+        "LSUIElement": false,
+        "NSAppleEventsUsageDescription": "Lyrics Visualiser follows the song playing in the Spotify app so lyrics stay in sync.",
+        "NSAudioCaptureUsageDescription": "Lyrics Visualiser listens to the music playing so backgrounds can move with the beat. Audio is analysed live on this Mac and never recorded or sent anywhere."
       }
     }
   },

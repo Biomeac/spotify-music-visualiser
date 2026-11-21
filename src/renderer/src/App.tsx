@@ -3,6 +3,7 @@ import { useAppState } from './lib/useAppState'
 import { useArtPalette } from './lib/useArtColor'
 import { useActiveLine, songPositionMs, songTime } from './lib/clock'
 import { lookFor } from './lib/look'
+import { startAudio, stopAudio } from './lib/audio'
 import { plainToLines } from './lib/lrc'
 import Background from './components/Background'
 import LyricsView from './components/LyricsView'
@@ -29,6 +30,14 @@ export default function App() {
   useEffect(() => {
     if (auth.loggedIn) setShowSetup(false)
   }, [auth.loggedIn])
+
+  // Music-reactive backgrounds: listen only while it's switched on.
+  const listen = ready && settings.background.music
+  useEffect(() => {
+    if (!listen) return
+    startAudio()
+    return () => stopAudio()
+  }, [listen])
 
   useEffect(() => {
     if (!toast) return

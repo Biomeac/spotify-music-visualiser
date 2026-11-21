@@ -1,6 +1,7 @@
+import { audio } from '../lib/audio'
 import { useEffect, useRef, type CSSProperties } from 'react'
 import type { BackgroundSettings } from '../../../shared'
-import { DITHER, FLUID, LAVA, SYNTH } from '../lib/shaders'
+import { DITHER, FLUID, LAVA, NEBULA, PULSE, SYNTH, TUNNEL } from '../lib/shaders'
 
 interface Props {
   bg: BackgroundSettings
@@ -84,7 +85,7 @@ function Particles({ colors, beat, speed, playing, reactive }: { colors: string[
           c: Math.floor(Math.random() * 3),
           tw: Math.random() * Math.PI * 2
         }))
-      const k = kick.current
+      const k = Math.max(kick.current, audio.active ? audio.beat * 0.9 + audio.bass * 0.25 : 0)
       kick.current *= Math.pow(0.04, dt || 0.016)
       ctx.clearRect(0, 0, w, h)
       // Soft colour wash behind the particles.
@@ -159,7 +160,7 @@ function Waves({ colors, beat, speed, playing, reactive }: { colors: string[]; b
   }, [beat, reactive])
   const ref = useCanvas(
     (ctx, w, h, dt, time) => {
-      const k = kick.current
+      const k = Math.max(kick.current, audio.active ? audio.beat * 0.9 + audio.bass * 0.25 : 0)
       kick.current *= Math.pow(0.08, dt || 0.016)
       ctx.clearRect(0, 0, w, h)
       ctx.globalCompositeOperation = 'lighter'
@@ -242,7 +243,10 @@ function ShaderBG({ frag, colors, beat, speed, playing, reactive, scale = 0.5 }:
     gl.enableVertexAttribArray(loc)
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
     const u = (n: string) => gl.getUniformLocation(prog, n)
-    const [uTime, uRes, uC1, uC2, uC3, uPulse] = ['u_time', 'u_res', 'u_c1', 'u_c2', 'u_c3', 'u_pulse'].map(u)
+    const [uTime, uRes, uC1, uC2, uC3, uPulse, uBass, uMid, uHigh, uBeatAge] = ['u_time', 'u_res', 'u_c1', 'u_c2', 'u_c3', 'u_pulse', 'u_bass', 'u_mid', 'u_high', 'u_beatAge'].map(u)
+    let seenBeats = audio.beats
+    let lastBeatAt = -10
+    let lastKick = 0
     // Colours ease towards the new palette when the song changes.
     const cur = live.current.colors.map(hexToRgb).map((c) => c.map((v) => v / 255))
     let raf = 0
@@ -252,7 +256,14 @@ function ShaderBG({ frag, colors, beat, speed, playing, reactive, scale = 0.5 }:
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
       const L = live.current
-      time += dt * L.speed * (L.playing ? 1 : 0.3)
+      // With live music, motion speeds up when the song gets louder.
+      const drive = audio.active ? 0.55 + 1.3 * audio.level : 1
+      time += dt * L.speed * (L.playing ? drive : 0.3)
+      if (audio.active && audio.beats !== seenBeats) {
+        seenBeats = audio.beats
+        lastBeatAt = now / 1000
+      } else if (!audio.active && kick.current > lastKick + 0.5) lastBeatAt = now / 1000
+      lastKick = kick.current
       const w = Math.max(1, Math.round(canvas.clientWidth * scale))
       const h = Math.max(1, Math.round(canvas.clientHeight * scale))
       if (canvas.width !== w || canvas.height !== h) {
@@ -270,7 +281,11 @@ function ShaderBG({ frag, colors, beat, speed, playing, reactive, scale = 0.5 }:
       gl.uniform3fv(uC1, cur[0])
       gl.uniform3fv(uC2, cur[1])
       gl.uniform3fv(uC3, cur[2])
-      gl.uniform1f(uPulse, kick.current)
+      gl.uniform1f(uPulse, Math.max(kick.current, audio.active ? audio.beat : 0))
+      gl.uniform1f(uBass, audio.active ? audio.bass : 0)
+      gl.uniform1f(uMid, audio.active ? audio.mid : 0)
+      gl.uniform1f(uHigh, audio.active ? audio.high : 0)
+      gl.uniform1f(uBeatAge, now / 1000 - lastBeatAt)
       gl.drawArrays(gl.TRIANGLES, 0, 3)
       raf = requestAnimationFrame(frame)
     }
@@ -294,7 +309,7 @@ function Warp({ colors, beat, speed, playing, reactive }: { colors: string[]; be
           const z = Math.random() * w
           return { x: (Math.random() - 0.5) * w, y: (Math.random() - 0.5) * h, z, pz: z, c: Math.floor(Math.random() * 3) }
         })
-      const k = kick.current
+      const k = Math.max(kick.current, audio.active ? audio.beat * 0.9 + audio.bass * 0.25 : 0)
       kick.current *= Math.pow(0.06, dt || 0.016)
       ctx.fillStyle = 'rgba(0,0,0,0.35)'
       ctx.fillRect(0, 0, w, h)
@@ -352,7 +367,7 @@ function Bokeh({ colors, beat, speed, playing, reactive }: { colors: string[]; b
             depth
           }
         })
-      const k = kick.current
+      const k = Math.max(kick.current, audio.active ? audio.beat * 0.9 + audio.bass * 0.25 : 0)
       kick.current *= Math.pow(0.05, dt || 0.016)
       const g0 = ctx.createLinearGradient(0, 0, 0, h)
       g0.addColorStop(0, '#020205')
@@ -413,7 +428,7 @@ function Halftone({ colors, artUrl, beat, speed, playing, reactive }: { colors: 
   }, [artUrl])
   const ref = useCanvas(
     (ctx, w, h, dt, time) => {
-      const k = kick.current
+      const k = Math.max(kick.current, audio.active ? audio.beat * 0.9 + audio.bass * 0.25 : 0)
       kick.current *= Math.pow(0.05, dt || 0.016)
       ctx.fillStyle = '#060606'
       ctx.fillRect(0, 0, w, h)
@@ -443,6 +458,133 @@ function Halftone({ colors, artUrl, beat, speed, playing, reactive }: { colors: 
           ctx.arc(x, y, rad, 0, Math.PI * 2)
           ctx.fill()
         }
+    },
+    { speed, playing }
+  )
+  return <canvas ref={ref} className="bg-canvas" />
+}
+
+/** Live frequency bands, or a gentle made-up spectrum while not listening, so it never looks dead. */
+const idleBands = new Float32Array(64)
+function bandsNow(time: number, kick: number): Float32Array {
+  if (audio.active) return audio.bands
+  for (let i = 0; i < 64; i++) {
+    const x = i / 64
+    const v = 0.35 + 0.25 * Math.sin(time * 1.3 + i * 0.35) * Math.sin(time * 0.7 + i * 0.13) + 0.15 * Math.sin(time * 2.9 + i * 0.9)
+    idleBands[i] = Math.max(0.03, Math.min(1, v * (1 - x * 0.55) + kick * 0.5 * (1 - x)))
+  }
+  return idleBands
+}
+
+/** Spectrum: a glowing ring of frequency bars around the centre, mirrored, with a bass halo. */
+function Spectrum({ colors, beat, speed, playing, reactive }: { colors: string[]; beat: number; speed: number; playing: boolean; reactive: boolean }) {
+  const kick = useRef(0)
+  const rot = useRef(0)
+  useEffect(() => {
+    if (reactive) kick.current = 1
+  }, [beat, reactive])
+  const ref = useCanvas(
+    (ctx, w, h, dt, time) => {
+      const k = Math.max(kick.current, audio.active ? audio.beat : 0)
+      kick.current *= Math.pow(0.05, dt || 0.016)
+      const bands = bandsNow(time, kick.current)
+      const bass = audio.active ? audio.bass : 0.3 + kick.current * 0.5
+      rot.current += dt * (0.08 + bass * 0.25)
+      ctx.globalCompositeOperation = 'source-over'
+      ctx.fillStyle = 'rgba(0,0,0,0.28)'
+      ctx.fillRect(0, 0, w, h)
+      const cx = w / 2
+      const cy = h / 2
+      const R = Math.min(w, h) * (0.2 + bass * 0.03 + k * 0.015)
+      const halo = ctx.createRadialGradient(cx, cy, R * 0.3, cx, cy, R * 2.6)
+      halo.addColorStop(0, colors[1] + '55')
+      halo.addColorStop(1, 'transparent')
+      ctx.fillStyle = halo
+      ctx.fillRect(0, 0, w, h)
+      ctx.globalCompositeOperation = 'lighter'
+      const n = 128
+      for (let i = 0; i < n; i++) {
+        const b = bands[i < 64 ? i : 127 - i] // mirrored, so the ring is symmetrical
+        const a = (i / n) * Math.PI * 2 + rot.current
+        const len = 6 + b * b * Math.min(w, h) * 0.22
+        const c = colors[i % 3]
+        ctx.strokeStyle = c
+        ctx.globalAlpha = 0.35 + b * 0.65
+        ctx.lineWidth = Math.max(2, (Math.PI * 2 * R) / n - 3)
+        ctx.lineCap = 'round'
+        ctx.beginPath()
+        ctx.moveTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R)
+        ctx.lineTo(cx + Math.cos(a) * (R + len), cy + Math.sin(a) * (R + len))
+        ctx.stroke()
+      }
+      ctx.globalAlpha = 0.5 + k * 0.5
+      ctx.strokeStyle = colors[2]
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(cx, cy, R * 0.92, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.globalAlpha = 1
+      ctx.globalCompositeOperation = 'source-over'
+    },
+    { speed, playing }
+  )
+  return <canvas ref={ref} className="bg-canvas" />
+}
+
+/** Skyline: a mirrored equaliser along the horizon, reflected in a glossy floor. */
+function Skyline({ colors, beat, speed, playing, reactive }: { colors: string[]; beat: number; speed: number; playing: boolean; reactive: boolean }) {
+  const kick = useRef(0)
+  const peaks = useRef(new Float32Array(64))
+  useEffect(() => {
+    if (reactive) kick.current = 1
+  }, [beat, reactive])
+  const ref = useCanvas(
+    (ctx, w, h, dt, time) => {
+      kick.current *= Math.pow(0.05, dt || 0.016)
+      const bands = bandsNow(time, kick.current)
+      ctx.clearRect(0, 0, w, h)
+      const sky = ctx.createLinearGradient(0, 0, 0, h)
+      sky.addColorStop(0, '#000')
+      sky.addColorStop(0.74, colors[1] + '38')
+      sky.addColorStop(0.74, '#000')
+      sky.addColorStop(1, '#000')
+      ctx.fillStyle = sky
+      ctx.fillRect(0, 0, w, h)
+      const horizon = h * 0.74
+      const n = 48
+      const gap = 4
+      const bw = (w - gap * (n + 1)) / n
+      for (let i = 0; i < n; i++) {
+        // Bass in the middle, highs to the edges.
+        const idx = Math.floor((Math.abs(i - (n - 1) / 2) / (n / 2)) * 60)
+        const v = bands[Math.min(63, idx)]
+        const bh = 4 + v * v * horizon * 0.5
+        const pk = peaks.current
+        pk[i] = Math.max(bh, pk[i] - dt * 260)
+        const x = gap + i * (bw + gap)
+        const g = ctx.createLinearGradient(0, horizon - bh, 0, horizon)
+        g.addColorStop(0, colors[0])
+        g.addColorStop(1, colors[2])
+        ctx.globalAlpha = 0.6
+        ctx.shadowColor = colors[0]
+        ctx.shadowBlur = 18
+        ctx.fillStyle = g
+        ctx.fillRect(x, horizon - bh, bw, bh)
+        ctx.shadowBlur = 0
+        ctx.fillStyle = '#ffffff'
+        ctx.globalAlpha = 0.7
+        ctx.fillRect(x, horizon - pk[i] - 6, bw, 2)
+        // Reflection in the floor
+        ctx.fillStyle = g
+        ctx.globalAlpha = 0.16
+        ctx.fillRect(x, horizon + 2, bw, bh * 0.45)
+        ctx.globalAlpha = 1
+      }
+      const fade = ctx.createLinearGradient(0, horizon, 0, h)
+      fade.addColorStop(0, 'rgba(0,0,0,0.2)')
+      fade.addColorStop(1, '#000')
+      ctx.fillStyle = fade
+      ctx.fillRect(0, horizon, w, h - horizon)
     },
     { speed, playing }
   )
@@ -487,6 +629,11 @@ export default function Background({ bg, colors, artUrl, beat, playing }: Props)
       {bg.kind === 'lava' && <ShaderBG frag={LAVA} {...common} scale={0.5} />}
       {bg.kind === 'synthwave' && <ShaderBG frag={SYNTH} {...common} scale={0.6} />}
       {bg.kind === 'warp' && <Warp {...common} />}
+      {bg.kind === 'pulse' && <ShaderBG frag={PULSE} {...common} scale={0.6} />}
+      {bg.kind === 'nebula' && <ShaderBG frag={NEBULA} {...common} scale={0.5} />}
+      {bg.kind === 'tunnel' && <ShaderBG frag={TUNNEL} {...common} scale={0.6} />}
+      {bg.kind === 'spectrum' && <Spectrum {...common} />}
+      {bg.kind === 'skyline' && <Skyline {...common} />}
       {bg.kind === 'bokeh' && <Bokeh {...common} />}
       {bg.kind === 'halftone' && <Halftone {...common} artUrl={artUrl} />}
       {bg.grain && <div className="grain" style={{ backgroundImage: GRAIN }} />}

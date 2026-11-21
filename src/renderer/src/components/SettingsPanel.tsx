@@ -1,3 +1,5 @@
+import { AudioLines } from 'lucide-react'
+import { useAudioStatus } from '../lib/audio'
 import { useState, type ReactNode } from 'react'
 import {
   DEFAULT_BACKGROUND,
@@ -32,6 +34,11 @@ const STYLES: { id: LyricStyle; name: string; desc: string }[] = [
 ]
 
 const BACKGROUNDS: { id: BackgroundKind; name: string }[] = [
+  { id: 'pulse', name: 'Pulse' },
+  { id: 'spectrum', name: 'Spectrum' },
+  { id: 'nebula', name: 'Nebula' },
+  { id: 'tunnel', name: 'Tunnel' },
+  { id: 'skyline', name: 'Skyline' },
   { id: 'fluid', name: 'Fluid' },
   { id: 'lava', name: 'Lava lamp' },
   { id: 'dither', name: 'Dither' },
@@ -106,6 +113,37 @@ function Seg<T extends string>({ value, options, onChange }: { value: T; options
 }
 
 const secs = (ms: number) => `${ms > 0 ? '+' : ''}${(ms / 1000).toFixed(2)}s`
+
+function MusicCard({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  const status = useAudioStatus()
+  const live = on && status === 'on'
+  return (
+    <div className={`music-card ${live ? 'live' : ''}`}>
+      <div className="mc-icon">
+        <AudioLines size={20} />
+      </div>
+      <div className="mc-text">
+        <b>React to the music</b>
+        <small>
+          {!on
+            ? 'Backgrounds listen to what Spotify is playing and move with the beat, bass and vocals.'
+            : status === 'on'
+              ? 'Listening. Try Pulse, Spectrum, Tunnel or Skyline.'
+              : status === 'starting'
+                ? 'Asking macOS for permission…'
+                : status === 'denied'
+                  ? 'macOS blocked it. Allow Lyrics Visualiser in System Settings › Privacy & Security › Screen & System Audio Recording. When running from Terminal, use npm run app instead of npm run dev.'
+                  : status === 'error'
+                    ? 'Couldn’t start listening. Needs macOS 14.2 or later.'
+                    : 'Starting…'}
+        </small>
+      </div>
+      <button className={`chip ${on ? 'on' : ''}`} onClick={() => onChange(!on)}>
+        {on ? 'On' : 'Turn on'}
+      </button>
+    </div>
+  )
+}
 
 export default function SettingsPanel({ settings, auth, track, output, onClose }: { settings: Settings; auth: AuthStatus; track: Track | null; output?: { name: string | null; latencyMs: number }; onClose: () => void }) {
   const [tab, setTab] = useState<Tab>('style')
@@ -241,6 +279,7 @@ export default function SettingsPanel({ settings, auth, track, output, onClose }
 
         {tab === 'background' && (
           <>
+            <MusicCard on={bg.music} onChange={(music) => setBg({ music })} />
             <div className="eyebrow">Background</div>
             <div className="bg-kinds">
               {BACKGROUNDS.map((b) => (

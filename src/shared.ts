@@ -47,6 +47,11 @@ export type LyricStyle =
   | 'wave'
 
 export type BackgroundKind =
+  | 'pulse'
+  | 'spectrum'
+  | 'nebula'
+  | 'tunnel'
+  | 'skyline'
   | 'fluid'
   | 'lava'
   | 'dither'
@@ -74,6 +79,8 @@ export interface BackgroundSettings {
   grain: boolean
   /** Pulse the background each time a new lyric line starts. */
   reactive: boolean
+  /** Listen to the music playing and move with it (needs System Audio Recording permission). */
+  music: boolean
 }
 
 export const DEFAULT_BACKGROUND: BackgroundSettings = {
@@ -84,7 +91,8 @@ export const DEFAULT_BACKGROUND: BackgroundSettings = {
   brightness: 0.8,
   blur: 80,
   grain: true,
-  reactive: true
+  reactive: true,
+  music: false
 }
 
 export interface Settings {

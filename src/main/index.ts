@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron'
+import { app, BrowserWindow, desktopCapturer, ipcMain, Menu, nativeImage, screen, session, shell, Tray } from 'electron'
 import { join } from 'node:path'
 import * as spotify from './spotify'
 import { fetchLyrics } from './lyrics'
@@ -343,7 +343,25 @@ ipcMain.handle('open-external', (_e, url: string) => {
   if (/^https:\/\//.test(url)) shell.openExternal(url)
 })
 
+/*
+ * "React to the music": the renderer asks for the system audio (what Spotify is playing) through
+ * getDisplayMedia. macOS 14.2+ delivers it through a CoreAudio tap, which only needs the System Audio
+ * Recording permission. Chromium still wants a screen source alongside it; the renderer ignores it.
+ */
+function allowMusicCapture() {
+  session.defaultSession.setDisplayMediaRequestHandler(
+    (_request, callback) => {
+      desktopCapturer
+        .getSources({ types: ['screen'], thumbnailSize: { width: 0, height: 0 } })
+        .then((sources) => callback({ video: sources[0], audio: 'loopback' }))
+        .catch(() => callback({}))
+    },
+    { useSystemPicker: false }
+  )
+}
+
 app.whenReady().then(() => {
+  allowMusicCapture()
   createMainWindow()
   createTray()
   if (getSettings().overlayVisible) createOverlay()

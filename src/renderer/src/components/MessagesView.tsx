@@ -282,7 +282,12 @@ export default function MessagesView({ lines, t, track, settings }: { lines: Lin
 
   const [stageRef, scale] = usePhoneScale()
   const keyboardUp =
-    settings.keyboard !== false && settings.liveTyping && (!!composing || (!!lastOut && lastOut.kind === 'text' && t - lastOut.appearAt < 1.6 && !!pending.find((it) => it.side === 'out' && it.appearAt - t < 4)))
+    settings.keyboard !== false &&
+    settings.liveTyping &&
+    // Stay up through a back-and-forth instead of bouncing between every line.
+    (!!composing ||
+      (!!lastOut && t - lastOut.appearAt < 2.5) ||
+      pending.some((it) => it.side === 'out' && it.kind === 'text' && it.typeFrom - t < 1.2))
   const pressed = composing && typed ? typed[typed.length - 1] : ''
   const unread = (hash(track?.id ?? 'x') * 40 + 3) | 0
 
@@ -424,8 +429,8 @@ export default function MessagesView({ lines, t, track, settings }: { lines: Lin
                 )}
               </div>
             </div>
+            <div className={`kb-space ${keyboardUp ? 'up' : ''}`} />
             <Keyboard pressed={pressed} up={keyboardUp} />
-            <div className={`safe ${keyboardUp ? '' : 'on'}`} />
             <div className="home-bar" />
             {fx?.screen && <ScreenFx kind={fx.screen} seed={fx.id} key={fx.id} />}
             <div className="glare" />
